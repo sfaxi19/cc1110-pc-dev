@@ -1,0 +1,4 @@
+*.o
+*.so.1.0
+sublimetext3/
+cc1110-dev
