@@ -13,7 +13,9 @@ CC1110_SRC=\
 	main.cpp \
 	link_fsm.cpp \
 	msg_format.cpp \
-	utils.cpp
+	utils.cpp \
+	global.cpp \
+	BoardClient.cpp
 CC1110_API=\
 	./*.hpp
 

@@ -12,7 +12,7 @@ class LinkFsmStateEnd;
 
 namespace LibSerial
 {
-class SerialPort;
+class ISerialPort;
 }
 
 namespace msg
@@ -36,6 +36,8 @@ public:
 	void SendSetupRequest();
 	void SendSetupAck();
 	void SendSetupErr();
+	
+	void SendData();
 
 private:
 

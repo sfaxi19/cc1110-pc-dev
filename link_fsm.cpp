@@ -8,7 +8,7 @@
 #include "link_fsm.hpp"
 #include "msg_format.hpp"
 #include "utils.hpp"
-
+#include "global.hpp"
 
 template<class T>
 class singleton
@@ -27,13 +27,13 @@ class LinkFsmState
 public:
 	virtual const char* name() = 0;
 
-	virtual void OnStart(LinkFsm* link)                              { printf("Unexpected event for %s state\n", name()); }
+	virtual void OnStart(LinkFsm* link)                              { LOG("Unexpected event for %s state\n", name()); }
 	virtual void OnMessage(LinkFsm* link, 
 						   msg::header_s msg_header, 
-						   std::vector<uint8_t>& msg)                { printf("Unexpected event for %s state\n", name()); }
-	virtual void OnEntry(LinkFsm* link)                              { /*printf("Unexpected event for %s state\n", name());*/ }
-	virtual void OnExit(LinkFsm* link)                               { /*printf("Unexpected event for %s state\n", name());*/ }
-	virtual void OnTimeout(LinkFsm* link)                            { /*printf("Unexpected event for %s state\n", name());*/ }
+						   std::vector<uint8_t>& msg)                { LOG("Unexpected event for %s state\n", name()); }
+	virtual void OnEntry(LinkFsm* link)                              { /*LOG("Unexpected event for %s state\n", name());*/ }
+	virtual void OnExit(LinkFsm* link)                               { /*LOG("Unexpected event for %s state\n", name());*/ }
+	virtual void OnTimeout(LinkFsm* link)                            { /*LOG("Unexpected event for %s state\n", name());*/ }
 
 	template<class STATE>
 	void ChangeState(LinkFsm* link)
@@ -45,7 +45,7 @@ public:
 
 		OnExit(link);
 		LinkFsmState* new_state = singleton<STATE>::getInstanse();
-		printf("%s -> %s\n", link->m_state->name(), new_state->name());
+		INFO("%s -> %s\n", link->m_state->name(), new_state->name());
 		link->m_state = new_state;
 		link->m_state->OnEntry(link);
 	}
@@ -70,15 +70,15 @@ class LinkFsmStateConnecting : public LinkFsmState
 		switch(msg_header.type)
 		{
 			case msg::WAKEUP_ACK:
-				printf("WAKEUP_ACK\n");
+				LOG("WAKEUP_ACK\n");
 				ChangeState<LinkFsmStateSetup>(link);
 				break;
 			case msg::ERR:
-				printf("ERR\n");
+				LOG("ERR\n");
 				ChangeState<LinkFsmStateEnd>(link);
 				break;
 			default:
-				printf("Unexpected messate in %s state\n", name());
+				LOG("Unexpected messate in %s state\n", name());
 				break;
 		}
 	}
@@ -86,7 +86,7 @@ class LinkFsmStateConnecting : public LinkFsmState
 
 	void OnTimeout(LinkFsm* link) override
 	{
-		printf("%s\n", __FUNCTION__);
+		LOG("%s\n", __FUNCTION__);
 		OnEntry(link);
 	}
 
@@ -105,8 +105,8 @@ class LinkFsmStateSetup : public LinkFsmState
 		switch(msg_header.type)
 		{
 			case msg::SETUP_RSP:
-				printf("SETUP_RSP\n");
-				if(msg_header.size ==  0 /*msg.size()*/)
+				LOG("SETUP_RSP\n");
+				if(msg_header.size ==  msg.size())
 				{
 					link->SendSetupAck();
 					ChangeState<LinkFsmStateActive>(link);
@@ -114,15 +114,15 @@ class LinkFsmStateSetup : public LinkFsmState
 				else
 				{
 					link->SendSetupErr();
-					printf("Failure! SETUP_RSP message has bad format.\n");
+					ERR("Failure! SETUP_RSP message has bad format.\n");
 				}
 				break;
 			case msg::SETUP_ERR:
-				printf("SETUP_ERR\n");
+				LOG("SETUP_ERR\n");
 				ChangeState<LinkFsmStateEnd>(link);
 				break;
 			default:
-				printf("Unexpected messate in %s state\n", name());
+				LOG("Unexpected messate in %s state\n", name());
 				break;
     	}
 	}
@@ -155,7 +155,29 @@ class LinkFsmStateActive : public LinkFsmState
 
 	void OnMessage(LinkFsm* link, msg::header_s msg_header, std::vector<uint8_t>& msg) override
 	{
+		switch(msg_header.type)
+		{
+			case msg::DATA_ACK:
+				LOG("DATA_ACK\n");
+				if(msg_header.size ==  msg.size())
+				{
+					INFO("Success! Data has sent.\n");
+				}
+				break;
+			default:
+				LOG("Unexpected messate in %s state\n", name());
+				break;
+    	}
+	}
 
+	void OnEntry(LinkFsm* link) override
+	{ 
+		link->SendData();
+	}
+
+	void OnExit(LinkFsm* link) override
+	{ 
+		/* */
 	}
 };
 
@@ -230,4 +252,21 @@ void LinkFsm::SendSetupErr()
 	m_serial_port.Write(msg);
 
 	print_message("SendSetupErr", msg);	
+}
+
+void LinkFsm::SendData()
+{
+	std::vector<uint8_t> data = {0x11, 0x22, 0x33, 0x44};
+	uint32_t DATA_SIZE = data.size();
+	uint32_t MSG_SIZE = DATA_SIZE + sizeof(msg::header_s);
+
+	std::vector<uint8_t> msg(MSG_SIZE);
+
+	msg::header_s header(msg::DATA, DATA_SIZE);
+	std::copy((uint8_t *)&header, (uint8_t *)(&header + sizeof(header)), msg.begin());
+	std::copy(data.begin(), data.end(), msg.begin() + sizeof(header));
+
+	m_serial_port.Write(msg);
+
+	print_message("SendData", msg);
 }

@@ -16,7 +16,8 @@ enum eMsgType : uint16_t
 	SETUP_ACK,
 	SETUP_ERR,
 	ERR,
-	DATA
+	DATA,
+	DATA_ACK
 };
 
 const char* toString(eMsgType type);

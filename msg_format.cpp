@@ -22,6 +22,7 @@ const char* toString(eMsgType type) {
 		case SETUP_ERR:  return "SETUP_ERR";
 		case ERR:        return "ERR";
 		case DATA:       return "DATA";
+		case DATA_ACK:   return "DATA_ACK";
 		default:         return "UNKNOWN";
 	}
 }
