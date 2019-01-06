@@ -3,6 +3,7 @@
 #include <thread>
 #include <algorithm>
 #include <cstring>
+#include <map>
 
 #include "BoardClient.hpp"
 
@@ -20,10 +21,25 @@ void check_arg(char* arg)
     }
 }
 
+uint16_t weight(uint8_t n)
+{ 
+    uint16_t count = 0; 
+    while (n) 
+    { 
+      n &= (n-1) ; 
+      count++; 
+    } 
+    return count; 
+} 
+
 void check_by_files(const char* sent_filename, const char* recv_filename)
 {
     std::ifstream sent_file(sent_filename);
     std::ifstream recv_file(recv_filename);
+
+    std::map<int, uint32_t> rssi_cnt_map;
+    std::map<int, uint32_t> rssi_error_map;
+    std::map<int, uint32_t> rssi_bit_err_map;
 
     if(sent_file.is_open() && recv_file.is_open())
     {
@@ -65,18 +81,67 @@ void check_by_files(const char* sent_filename, const char* recv_filename)
 
             if (sent_file && recv_file)
             {
+                int round_rssi = rssi_converter(buffer2[size2 - 2]);
+                round_rssi = round_rssi - (round_rssi % 5);
+
                 if (memcmp(buffer1, buffer2, size1) != 0)
                 {
-                    INFO("   PACKET_ERROR");
                     pktErrCnt++;
+                    auto[it_err, success_err] = rssi_error_map.insert(std::make_pair(round_rssi, 1));
+                    if (!success_err)
+                    {
+                        it_err->second++;
+                    }
+
+                    uint32_t bit_err_cnt = 0;
+                    for(int i=0; i < size1; i++)
+                    {
+                        if(buffer1[i] != buffer2[i])
+                        {
+                            bit_err_cnt += weight(buffer1[i] ^ buffer2[i]);
+                        }
+                    }
+                    auto[it_berr, success_berr] = rssi_bit_err_map.insert(std::make_pair(round_rssi, bit_err_cnt));
+                    if (!success_berr)
+                    {
+                        it_berr->second += bit_err_cnt;
+                    }
+                    INFO("   PACKET_ERROR [%4d bit errors]", bit_err_cnt);
                 }
                 pktCnt++;
+                auto[it, success] = rssi_cnt_map.insert(std::make_pair(round_rssi, 1));
+                if (!success)
+                {
+                    it->second++;
+                }
             }
             INFO("\n");
         }
         INFO("PACKETS: %d\n", pktCnt);
         INFO("ERRORS : %d\n", pktErrCnt);
         INFO("PER    : %f\n", (double)pktErrCnt/pktCnt);
+
+        std::ofstream per_file{"per.csv"};
+        std::ofstream ber_file{"ber.csv"};
+        for(auto& it_err : rssi_error_map)
+        {
+            per_file << it_err.first << ",";
+            ber_file << it_err.first << ",";
+        }
+        per_file << std::endl;
+        ber_file << std::endl;
+        auto it_cnt = rssi_cnt_map.cbegin();
+        auto it_berr = rssi_bit_err_map.cbegin();
+        for(auto& it_err : rssi_error_map)
+        {
+            double per = (double)it_err.second/it_cnt->second;
+            double ber = (double)it_berr->second/(it_cnt->second * 8 * size1);
+            per_file << per << ",";
+            ber_file << ber << ",";
+            INFO("RSSI: %3d\t PACKETS: %4u\t pERRORS: %4u\t PER: %6.4f \tbERRORS: %4u\t BER: %6.4f\n", it_err.first, it_cnt->second, it_err.second, per, it_berr->second, ber);
+            it_cnt++;
+            it_berr++;
+        }
     }
     else
     {
@@ -88,17 +153,18 @@ void check_by_files(const char* sent_filename, const char* recv_filename)
 
 int main(int args, char** argv)
 {
-    if (argv[1] == nullptr)
-    {
-    	std::cerr << "File not found." << std::endl;
-        return EXIT_FAILURE;
-    }
+    check_arg(argv[1]);
     check_arg(argv[2]);
     check_arg(argv[3]);
     check_arg(argv[4]);
 
     if (!check_mode)
     {
+        if (argv[1] == nullptr)
+        {
+            std::cerr << "File not found." << std::endl;
+            return EXIT_FAILURE;
+        }
         if (rx_mode)
         {
             BoardClient client{argv[1], eMode::RADIO_MODE_RX, 7, "rx.log"};
@@ -107,26 +173,30 @@ int main(int args, char** argv)
         else
         {
             BoardClient client{argv[1], eMode::RADIO_MODE_TX, 7, "tx.log"};  
-            client.GetSettings().SetTransmissions(400); 
+            client.GetSettings().SetTransmissions(1000); 
             client.Run();
             while(!client.IsActive())
             {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-            for(uint32_t i = 0; i < 20; i++)
-            {
-                std::vector<uint8_t> msg1{0x1a, 0x2b, 0x3c, 0x4d, i % 255, 0, i % 255};
-                if (!client.SendPacket(msg1)) INFO("msg failure\n"); 
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
+            std::vector<uint8_t> msg1{0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x70};
+            if (!client.SendPacket(msg1)) INFO("msg failure\n"); 
         }
     }
     else
     {
-        check_by_files("tx.log", "rx.log");
+        if (argv[2] && argv[3])
+        {
+            check_by_files(argv[2], argv[3]);    
+        }
+        else
+        {
+            std::cerr << "File not found." << std::endl;
+            std::cerr << "The first file: tx.log" << std::endl;
+            std::cerr << "The second file: rx.log" << std::endl;
+            return EXIT_FAILURE;
+        }
     }
 
     std::cout << "The program successfully completed!" << std::endl;
