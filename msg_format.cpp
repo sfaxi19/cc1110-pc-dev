@@ -20,9 +20,10 @@ const char* toString(eMsgType type) {
 		case SETUP_RSP:  return "SETUP_RSP";
 		case SETUP_ACK:  return "SETUP_ACK";
 		case SETUP_ERR:  return "SETUP_ERR";
-		case ERR:        return "ERR";
-		case DATA:       return "DATA";
+		case DATA_REQ:   return "DATA_REQ";
+		case DATA_RSP:   return "DATA_RSP";
 		case DATA_ACK:   return "DATA_ACK";
+		case ERR:        return "ERR";
 		default:         return "UNKNOWN";
 	}
 }

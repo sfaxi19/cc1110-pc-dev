@@ -1,4 +1,4 @@
-CC=g++ -std=c++17
+CC=g++ -std=c++17 -pthread -g 
 CFLAGS=\
 	 -Ilibserial/api
 
@@ -10,12 +10,13 @@ LIBSERIAL_API=\
 	libserial/api/*
 
 CC1110_SRC=\
-	main.cpp \
+	BoardClient.cpp \
+	settings.cpp \
 	link_fsm.cpp \
 	msg_format.cpp \
 	utils.cpp \
 	global.cpp \
-	BoardClient.cpp
+	main.cpp
 CC1110_API=\
 	./*.hpp
 

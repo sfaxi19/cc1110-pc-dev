@@ -1,8 +1,10 @@
+#pragma once
+ 
 struct settings_s
 {
 	uint8_t CC1110_SYNC1 =       0xD3;
 	uint8_t CC1110_SYNC0 =       0x91;
-	uint8_t CC1110_PKTLEN =      0xFF;
+	uint8_t CC1110_PKTLEN =      0x04;
 	uint8_t CC1110_PKTCTRL1 =    0x04;
 	uint8_t CC1110_PKTCTRL0 =    0x05;
 	uint8_t CC1110_ADDR =        0x00;
@@ -54,7 +56,18 @@ struct settings_s
 	uint8_t CC1110_MARCSTATE =   0x01;
 	uint8_t CC1110_PKTSTATUS =   0x00;
 	uint8_t CC1110_VCO_VC_DAC =  0x94;
-	uint16_t DUMMY_BYTES =         0x00;
+	uint8_t MODE =               0x00;
+	uint8_t DUMMY_BYTE =         0x00;
+	uint32_t TRANSMISSIONS =     0x01;
+
+	void     SetPacketLength(uint8_t len);
+	uint8_t  GetPacketLength() const;
+
+	void     SetCRCEnable(uint8_t enable);
+
+	void     SetTransmissions(uint32_t cnt);
+	uint32_t GetTransmissions();
+
 };
 
 // Address Config = No address check 

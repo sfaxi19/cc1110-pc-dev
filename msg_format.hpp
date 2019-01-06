@@ -1,5 +1,7 @@
 #pragma once
+
 #include <iostream>
+
 #include "settings.hpp"
 
 namespace msg
@@ -11,13 +13,17 @@ enum eMsgType : uint16_t
 {
 	WAKEUP = 1,
 	WAKEUP_ACK,
+	
 	SETUP_REQ,
 	SETUP_RSP,
 	SETUP_ACK,
 	SETUP_ERR,
-	ERR,
-	DATA,
-	DATA_ACK
+
+	DATA_REQ,
+	DATA_RSP,
+	DATA_ACK,
+
+	ERR
 };
 
 const char* toString(eMsgType type);
@@ -32,7 +38,10 @@ struct header_s
 
 struct setup_req_s : header_s
 {
-	setup_req_s() : header_s(SETUP_REQ, sizeof(settings_s)) {}
+	setup_req_s(settings_s _settings) 
+		: header_s(SETUP_REQ, sizeof(settings_s))
+		, settings{_settings}
+		{}
 
 	settings_s settings;
 };

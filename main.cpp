@@ -2,160 +2,133 @@
 #include <chrono>
 #include <thread>
 #include <algorithm>
+#include <cstring>
 
-#include "SerialPort.h"
-#include "ISerialPort.hpp"
-#include "link_fsm.hpp"
-#include "msg_format.hpp"
-#include "utils.hpp"
-#include "global.hpp"
+#include "BoardClient.hpp"
 
-#define STUB
+bool check_mode = false;
 
-// Specify a timeout value (in milliseconds).
-const size_t timeout_milliseconds = 1000;
-
-std::vector<uint8_t> test_data = 
+void check_arg(char* arg)
 {
-        msg::WAKEUP_ACK, 0x00, 0x00, 0x00,
-        msg::SETUP_RSP, 0x00,  0x38, 0x00, 
-                        0xd3, 0x91, 0xff, 0x04, 0x05, 0x00, 0x00, 
-                        0x0e, 0x00, 0x21, 0x65, 0x6a, 0x0e, 0x3b, 
-                        0x73, 0x42, 0xf8, 0x00, 0x07, 0x30, 0x18, 
-                        0x1d, 0x1c, 0xc7, 0x00, 0xb0, 0xb6, 0x10, 
-                        0xea, 0x2a, 0x00, 0x1f, 0x88, 0x31, 0x09, 
-                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                        0x50, 0x00, 0x00, 0x06, 0x01, 0x03, 0x00, 
-                        0x00, 0x80, 0x01, 0x00, 0x94, 0x00, 0x00,
-        msg::DATA_ACK,  0x00, 0x04, 0x00, 
-                        0x11, 0x22, 0x33, 0x44
-};
-
-
-void print_test_data(std::vector<uint8_t>& data)
-{
-    for(int i=0;i < data.size(); i++)
+    if(arg != nullptr)
     {
-        printf("%02d ", i);
+        if (std::string(arg) == "--trace") { trace = true;         }
+        if (std::string(arg) == "--log")   { log = true;           }
+        if (std::string(arg) == "--debug") { debug = true;         }
+        if (std::string(arg) == "--rx")    { rx_mode = true;       }
+        if (std::string(arg) == "--check") { check_mode = true;    }
     }
-    printf("\n");
-    for(int i=0;i < data.size(); i++)
-    {
-        printf("%02x ", data[i]);
-    }
-    printf("\n");
 }
 
-class FakeSerialPort : public LibSerial::ISerialPort
+void check_by_files(const char* sent_filename, const char* recv_filename)
 {
-public:
-	void Read(LibSerial::DataBuffer& dataBuffer, size_t numberOfBytes = 0, size_t msTimeout = 0, size_t startPosition = 0) override 
-	{
-        dataBuffer.resize(numberOfBytes);
-		if (index >= std::size(test_data) || numberOfBytes > 100)
+    std::ifstream sent_file(sent_filename);
+    std::ifstream recv_file(recv_filename);
+
+    if(sent_file.is_open() && recv_file.is_open())
+    {
+        char buffer1[1024];
+        char buffer2[1024];
+        uint8_t size1 = 0;
+        uint8_t size2 = 0;
+        uint32_t pktErrCnt = 0;
+        uint32_t pktCnt = 0;
+
+
+        while(sent_file || recv_file)
         {
-			std::this_thread::sleep_for(std::chrono::milliseconds(timeout_milliseconds));
-			throw LibSerial::ReadTimeout(LibSerial::ERR_MSG_READ_TIMEOUT);
-		}
-		dataBuffer.resize(numberOfBytes);
-        std::copy(test_data.begin() + index, test_data.begin() + (index + numberOfBytes), dataBuffer.begin());
-		index += numberOfBytes;
-		//print_test_data(dataBuffer);
-	}
+            if (sent_file)
+            {
+                sent_file.read(reinterpret_cast<char*>(&size1), sizeof(size1));
+                if (sent_file) 
+                {
+                    sent_file.read(buffer1, size1); 
+                    INFO("[");
+                    std::for_each(buffer1, buffer1 + size1, [](auto& val){ INFO("%02x ", (uint8_t)val); });
+                    INFO("]");
+                }
+            }
+            INFO("\t--->\t");  
+            if (recv_file)
+            {
+                recv_file.read(reinterpret_cast<char*>(&size2), sizeof(size2));
+                if (recv_file) 
+                {
+                    recv_file.read(buffer2, size2);
+                    INFO("[");
+                    std::for_each(buffer2, buffer2 + size2 - 2, [](auto& val){ INFO("%02x ", (uint8_t)val); });
+                    int rssi = rssi_converter(buffer2[size2 - 2]);
+                    uint8_t lqi = buffer2[size2 - 1];
+                    INFO("] RSSI: %d  LQI: %u", rssi, lqi);
+                }
+            }
 
-    void Write(const LibSerial::DataBuffer& dataBuffer) override
+            if (sent_file && recv_file)
+            {
+                if (memcmp(buffer1, buffer2, size1) != 0)
+                {
+                    INFO("   PACKET_ERROR");
+                    pktErrCnt++;
+                }
+                pktCnt++;
+            }
+            INFO("\n");
+        }
+        INFO("PACKETS: %d\n", pktCnt);
+        INFO("ERRORS : %d\n", pktErrCnt);
+        INFO("PER    : %f\n", (double)pktErrCnt/pktCnt);
+    }
+    else
     {
-        //print_message("Sent", dataBuffer);
+        ERR("%s: Fail!", __PRETTY_FUNCTION__);
     }
-
-    uint32_t index = 0;
-};
-
-bool serial_port_setup(LibSerial::ISerialPort& serial_port, std::string path)
-{
-    // Open the Serial Ports at the desired hardware devices.
-    serial_port.Open(path);
-    // Verify that the serial ports opened.
-    if (!serial_port.IsOpen())
-	{
-        std::cerr << "The serial ports did not open correctly." << std::endl;
-        return false;
-    }
-    // Set the baud rates.
-    serial_port.SetBaudRate(LibSerial::BaudRate::BAUD_57600);
-    // Set the number of data bits.
-    serial_port.SetCharacterSize(LibSerial::CharacterSize::CHAR_SIZE_8);
-    // Set the hardware flow control.
-    serial_port.SetFlowControl(LibSerial::FlowControl::FLOW_CONTROL_NONE);
-    // Set the parity.
-    serial_port.SetParity(LibSerial::Parity::PARITY_NONE);
-    // Set the number of stop bits.
-    serial_port.SetStopBits(LibSerial::StopBits::STOP_BITS_1);
-    return true;
 }
+
 
 
 int main(int args, char** argv)
 {
-
-    //print_test_data(test_data);
-    //LibSerial::SerialPort serial_port;// serial_port;
-	FakeSerialPort serial_port;
-
     if (argv[1] == nullptr)
     {
     	std::cerr << "File not found." << std::endl;
         return EXIT_FAILURE;
     }
-    if (argv[2] != nullptr)
+    check_arg(argv[2]);
+    check_arg(argv[3]);
+    check_arg(argv[4]);
+
+    if (!check_mode)
     {
-        if (std::string(argv[2]) == "--trace") trace = true;
-        if (std::string(argv[2]) == "--log")   log = true;
-    }
-
-    if (argv[3] != nullptr)
-    {
-        if (std::string(argv[3]) == "--trace") trace = true;
-        if (std::string(argv[3]) == "--log")   log = true;
-    }
-
-    if (!serial_port_setup(serial_port, argv[1]))
-    {
-        return EXIT_FAILURE;
-    }
-
-    //std::vector<uint8_t> msg(25);
-
-    LinkFsm fsm(serial_port);
-    fsm.activate();
-
-    const uint32_t rx_buffer_size = 1024;
-    std::vector<uint8_t> buffer(rx_buffer_size);
-
-	while(true)
-    {
-        try
+        if (rx_mode)
         {
-        	LOG("Waiting for %zu bytes...\n", sizeof(msg::header_s));
-            
-            serial_port.Read(buffer, sizeof(msg::header_s), timeout_milliseconds);
-            msg::header_s msg_header = *reinterpret_cast<msg::header_s*>(buffer.data());
-            LOG("Type: %s(%d)\nSize: %d\n", toString(msg_header.type), msg_header.type, msg_header.size);
-            if (msg_header.size)
-            {
-                LOG("Waiting for %u bytes...\n", msg_header.size);
-                serial_port.Read(buffer, msg_header.size, timeout_milliseconds);
-            }
-            print_message("Receive", buffer, &msg_header);
-            fsm.OnMessage(msg_header, buffer);
+            BoardClient client{argv[1], eMode::RADIO_MODE_RX, 7, "rx.log"};
+            client.Run();
         }
-        catch (const LibSerial::ReadTimeout& err)
+        else
         {
-            INFO("--- %lu milliseconds passed ---\n", timeout_milliseconds);
-        	fsm.OnTimeout();
-    	}
-	}
-    serial_port.Close();
+            BoardClient client{argv[1], eMode::RADIO_MODE_TX, 7, "tx.log"};  
+            client.GetSettings().SetTransmissions(400); 
+            client.Run();
+            while(!client.IsActive())
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+            for(uint32_t i = 0; i < 20; i++)
+            {
+                std::vector<uint8_t> msg1{0x1a, 0x2b, 0x3c, 0x4d, i % 255, 0, i % 255};
+                if (!client.SendPacket(msg1)) INFO("msg failure\n"); 
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }
+    }
+    else
+    {
+        check_by_files("tx.log", "rx.log");
+    }
+
     std::cout << "The program successfully completed!" << std::endl;
 	return EXIT_SUCCESS;
 }
