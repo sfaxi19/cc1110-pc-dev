@@ -1,6 +1,7 @@
 CC=g++ -std=c++17 -pthread -g 
 CFLAGS=\
-	 -Ilibserial/api
+	 -Ilibserial/api \
+	 -Iapi
 
 LIBSERIAL_SRC=\
 	libserial/SerialPort.cpp \
@@ -10,15 +11,15 @@ LIBSERIAL_API=\
 	libserial/api/*
 
 CC1110_SRC=\
-	BoardClient.cpp \
-	settings.cpp \
-	link_fsm.cpp \
-	msg_format.cpp \
-	utils.cpp \
-	global.cpp \
-	main.cpp
+	src/BoardClient.cpp \
+	src/settings.cpp \
+	src/link_fsm.cpp \
+	src/msg_format.cpp \
+	src/utils.cpp \
+	src/global.cpp \
+	src/main.cpp
 CC1110_API=\
-	./*.hpp
+	./api/*.hpp
 
 EXE=cc1110-dev
 LIBSERIAL=libserial.so.1.0
