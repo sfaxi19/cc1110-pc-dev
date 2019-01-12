@@ -1,0 +1,4 @@
+make && \
+sudo chmod 777 /dev/ttyUSB* && \
+./cc1110-dev $1 --rx
+
