@@ -376,6 +376,7 @@ void LinkFsm::SendTxDataAck()
 	msg::header_s header(msg::DATA_ACK, 0);
 	std::vector<uint8_t> msg(reinterpret_cast<uint8_t*>(&header), reinterpret_cast<uint8_t*>(&header) + sizeof(msg::header_s));
 
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	m_serial_port.Write(msg);
 	print_message(__FUNCTION__, msg);	
 }

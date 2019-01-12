@@ -3,4 +3,5 @@
 sublimetext3/
 cc1110-dev
 *.log
+*.dump
 logs/
