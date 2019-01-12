@@ -167,17 +167,17 @@ int main(int args, char** argv)
         }
         if (rx_mode)
         {
-            BoardClient client{argv[1], eMode::RADIO_MODE_RX, 7, "rx.log"};
+            BoardClient client{argv[1], eMode::RADIO_MODE_RX, 7};
             client.Run();
         }
         else
         {
-            BoardClient client{argv[1], eMode::RADIO_MODE_TX, 7, "tx.log"};  
-            client.GetSettings().SetTransmissions(1000); 
+            BoardClient client{argv[1], eMode::RADIO_MODE_TX, 7};  
+            client.GetSettings().SetTransmissions(100); 
             client.Run();
             while(!client.IsActive())
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
 
             std::vector<uint8_t> msg1{0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x70};

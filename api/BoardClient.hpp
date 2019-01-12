@@ -11,12 +11,35 @@
 #include "utils.hpp"
 #include "msg_format.hpp"
 
+static char dump_name[20];
+
+inline const char* getFileDumpName(const char* filename, eMode mode)
+{
+    if (!filename)
+    {
+        uint8_t num = 1;
+        do
+        {
+            if (mode == RADIO_MODE_TX) 
+                { sprintf(dump_name, "tx.%03u.dump", num++);}
+            else                       
+                { sprintf(dump_name, "rx.%03u.dump", num++);}
+        } while(file_exist(dump_name) && num < 255);
+
+        return dump_name;
+    }
+    else
+    {
+        return filename;
+    }
+}
+
 class BoardClient
 {
 public:
 
-	BoardClient(std::string board_path, eMode mode, uint8_t packet_len, const char* filename) 
-		: m_link_fsm{this, m_serial_port, mode, filename}
+	BoardClient(std::string board_path, eMode mode, uint8_t packet_len, const char* filename = nullptr) 
+		: m_link_fsm{this, m_serial_port, mode, getFileDumpName(filename, mode)}
         , m_mode{mode}
 	    , m_board_path{board_path}
     {
