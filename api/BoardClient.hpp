@@ -3,6 +3,7 @@
 #include <list>
 #include <vector>
 #include <mutex>
+#include <functional>
 
 #include "global.hpp"
 #include "link_fsm.hpp"
@@ -11,10 +12,13 @@
 #include "utils.hpp"
 #include "msg_format.hpp"
 
-static char dump_name[20];
-
-inline const char* getFileDumpName(const char* filename, eMode mode)
+namespace cc1110
 {
+
+inline const char* getDumpFileName(const char* filename, eMode mode)
+{
+    static char dump_name[20];
+
     if (!filename)
     {
         uint8_t num = 1;
@@ -38,8 +42,10 @@ class BoardClient
 {
 public:
 
+    using receive_callback_t = std::function<void(std::vector<uint8_t>& msg)>;
+
 	BoardClient(std::string board_path, eMode mode, uint8_t packet_len, const char* filename = nullptr) 
-		: m_link_fsm{this, m_serial_port, mode, getFileDumpName(filename, mode)}
+		: m_link_fsm{this, m_serial_port, mode, getDumpFileName(filename, mode)}
         , m_mode{mode}
 	    , m_board_path{board_path}
     {
@@ -55,7 +61,7 @@ public:
 		m_serial_port.Close();
 	}
 
-	bool Setup(LibSerial::ISerialPort& serial_port, std::string path);
+	bool Setup(SerialPort_t& serial_port, std::string path);
 	bool Run();
     void BaseLoop();
     bool IsActive() { return m_link_fsm.IsActive(); }
@@ -69,6 +75,10 @@ public:
     void                  PopPacket();
     settings_s&           GetSettings() { return m_settings; }
 
+    void                  SetReceiveCallback(receive_callback_t recv_callback) { m_recv_callback = recv_callback; }
+
+    void                  WaitForActive();
+
 private:
 	SerialPort_t                    m_serial_port;
 	LinkFsm                         m_link_fsm;
@@ -81,4 +91,10 @@ private:
     std::thread                     m_thread;
     std::mutex                      m_mtx;
     bool                            terminate = false;
+
+    receive_callback_t              m_recv_callback;
+
+    friend class LinkFsm;
 };
+
+}

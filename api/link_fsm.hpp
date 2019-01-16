@@ -3,7 +3,11 @@
 #include <vector>
 #include <fstream>
 
+#include "global.hpp"
 #include "settings.hpp"
+
+namespace cc1110
+{
 
 class BoardClient;
 class LinkFsmState;
@@ -33,11 +37,6 @@ enum eMode
 
 const char* toString(eMode);
 
-namespace LibSerial
-{
-class ISerialPort;
-}
-
 namespace msg
 {
 class header_s;	
@@ -46,7 +45,7 @@ class header_s;
 class LinkFsm
 {
 public:
-	LinkFsm(BoardClient* board_client, LibSerial::ISerialPort& serial_port, eMode mode, const char*);
+	LinkFsm(BoardClient* board_client, SerialPort_t& serial_port, eMode mode, const char*);
 
 	void activate();
 
@@ -67,11 +66,13 @@ public:
 
 	void SaveToFile(const char* data, size_t size);
 
+	void ReceiveCallback(std::vector<uint8_t>& msg);
+
 private:
 
 	BoardClient*             m_board_client;
 	LinkFsmState*            m_state;
-	LibSerial::ISerialPort&  m_serial_port;
+	SerialPort_t&            m_serial_port;
 	eMode                    m_mode;
 	std::ofstream            m_file;
 	
@@ -83,3 +84,5 @@ private:
 	friend LinkFsmStateSetup;
 	friend LinkFsmStateEnd;
 };
+
+}

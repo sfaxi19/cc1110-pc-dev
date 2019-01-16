@@ -10,6 +10,9 @@
 #include "global.hpp"
 #include "BoardClient.hpp"
 
+namespace cc1110
+{
+
 const char* toString(eMode mode)
 {
 	switch(mode)
@@ -256,11 +259,14 @@ public:
 			{
 				LOG("DATA_REQ\n");
 				link->SaveToFile(reinterpret_cast<char*>(msg.data()), msg.size());
-				INFO("Data has received: [");
-				std::for_each(msg.begin(), msg.end() - 2, [](auto& val){ INFO("%02x ", val); });
+				link->ReceiveCallback(msg);
+
+				LOG("Data has received: [");
+				std::for_each(msg.begin(), msg.end() - 2, [](auto& val){ LOG("%02x ", val); });
 				int rssi = rssi_converter(msg[msg.size() - 2]);
 				uint8_t lqi = msg[msg.size() - 1];
-				INFO("] RSSI: %d  LQI: %u\n", rssi, lqi);
+				LOG("] RSSI: %d  LQI: %u\n", rssi, lqi);
+				
 				break;
 			}
 			default:
@@ -291,7 +297,7 @@ public:
 
 
 
-LinkFsm::LinkFsm(BoardClient* board_client, LibSerial::ISerialPort& serial_port, eMode mode, const char* filename) 
+LinkFsm::LinkFsm(BoardClient* board_client, SerialPort_t& serial_port, eMode mode, const char* filename) 
 	: m_board_client{board_client}
 	, m_serial_port{serial_port}
 	, m_mode{mode}
@@ -399,5 +405,11 @@ void LinkFsm::SaveToFile(const char* data, size_t size)
 	{
 		ERR("%s: Fail!", __PRETTY_FUNCTION__);
 	}
+}
+
+void LinkFsm::ReceiveCallback(std::vector<uint8_t>& msg)
+{
+	m_board_client->m_recv_callback(msg);
+}
 
 }

@@ -7,38 +7,37 @@
 #include "SerialPort.h"
 #include "msg_format.hpp"
 
+namespace cc1110
+{
 extern bool trace;
-extern bool log;
+extern bool logging;
 extern bool debug;
-extern bool rx_mode;
+}
 
-#define LOG(...)   if(log){fprintf(stdout, __VA_ARGS__);}
-#define TRACE(...) if(trace){fprintf(stdout, __VA_ARGS__);}
-#define DEBUG(...) if(debug)fprintf(stdout, __VA_ARGS__);
-#define IFLOG(...) if(log)
+#define LOG(...)   if(cc1110::logging){fprintf(stdout, __VA_ARGS__);}
+#define TRACE(...) if(cc1110::trace){fprintf(stdout, __VA_ARGS__);}
+#define DEBUG(...) if(cc1110::debug)fprintf(stdout, __VA_ARGS__);
+#define IFLOG(...) if(cc1110::logging)
 #define ERR(...)   fprintf(stderr, __VA_ARGS__);
 #define INFO(...)  fprintf(stdout, __VA_ARGS__);
 
 #define SET_BIT(BYTE, IDX, VALUE) BYTE = (BYTE & !(IDX)) | ((VALUE & 0x01) << IDX);
 #define SET_BITS(BYTE, RANGE, SHIFT, VALUE) BYTE = (BYTE & !((1 << RANGE) - 1)) | ((VALUE & ((1 << RANGE) - 1)) << SHIFT);
 
-class trace_func {
-	const char* m_file;	const char* m_name;
+class trace_func {	
+    const char* m_file;	const char* m_name;
 public:
-	trace_func(const char* file, const char* name) : m_file{file}, m_name{name}	{
-		DEBUG("=== %s: %s\t\\\n", m_file, m_name);
-	}
-	~trace_func(){
-		DEBUG("=== %s: %s\t/\n", m_file, m_name);
-	}
+	trace_func(const char* file, const char* name) : m_file{file}, m_name{name}	{DEBUG("=== %s: %s\t\\\n", m_file, m_name);}
+	~trace_func(){DEBUG("=== %s: %s\t/\n", m_file, m_name);}
 };
 
 #define TRACE_FUNCTION() trace_func TRACE_FUNCTION{__FILE__, __PRETTY_FUNCTION__};
 
-
 const size_t timeout_milliseconds = 150;
 
 
+namespace cc1110
+{
 
 const std::vector<uint8_t> test_data = 
 {
@@ -92,3 +91,5 @@ public:
 #else
     using SerialPort_t = FakeSerialPort;
 #endif
+
+}

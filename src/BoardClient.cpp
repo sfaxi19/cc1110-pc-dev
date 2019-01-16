@@ -1,7 +1,9 @@
 #include "BoardClient.hpp"
 
+namespace cc1110
+{
 
-bool BoardClient::Setup(LibSerial::ISerialPort& serial_port, std::string path)
+bool BoardClient::Setup(SerialPort_t& serial_port, std::string path)
 {
 	TRACE_FUNCTION();
     // Open the Serial Ports at the desired hardware devices.
@@ -31,7 +33,7 @@ void BoardClient::BaseLoop()
     std::vector<uint8_t> buffer(rx_buffer_size);
     m_link_fsm.activate();
 
-    while(!(terminate && IsPacketListEmpty() &&  m_mode == RADIO_MODE_TX))
+    while(!(terminate && IsPacketListEmpty()))
     {
         try
         {
@@ -114,3 +116,13 @@ void BoardClient::PopPacket()
 
     m_packets.pop_front();
 } 
+
+void BoardClient::WaitForActive()
+{
+    while(!IsActive())
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    }
+}
+
+}

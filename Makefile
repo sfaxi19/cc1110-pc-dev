@@ -12,6 +12,7 @@ LIBSERIAL_API=\
 
 CC1110_SRC=\
 	src/BoardClient.cpp \
+	src/DumpParsing.cpp \
 	src/settings.cpp \
 	src/link_fsm.cpp \
 	src/msg_format.cpp \

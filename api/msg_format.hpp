@@ -4,7 +4,7 @@
 
 #include "settings.hpp"
 
-namespace msg
+namespace cc1110::msg
 {
 
 constexpr uint16_t DATA_LENGTH = 22;

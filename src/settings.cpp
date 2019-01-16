@@ -1,5 +1,8 @@
 #include "global.hpp"
 
+namespace cc1110
+{
+
 void settings_s::SetPacketLength(uint8_t len)
 {
 	SET_BITS(CC1110_PKTCTRL0, 2, 0, 0);
@@ -25,4 +28,6 @@ void settings_s::SetTransmissions(uint32_t cnt)
 uint32_t settings_s::GetTransmissions()
 {
 	return TRANSMISSIONS;
+}
+
 }

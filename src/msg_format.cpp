@@ -1,17 +1,10 @@
 #include "msg_format.hpp"
 
-namespace msg
+namespace cc1110::msg
 {
-/*
-	WAKEUP,
-	WAKEUP_ACK,
-	SETUP_REQ,
-	SETUP_RSP,
-	SETUP_ACK,
-	ERR,
-	DATA
-	*/
-const char* toString(eMsgType type) {
+
+const char* toString(msg::eMsgType type) {
+	using namespace msg;
 	switch(type)
 	{
 		case WAKEUP:     return "WAKEUP";
@@ -29,3 +22,4 @@ const char* toString(eMsgType type) {
 }
 
 }
+

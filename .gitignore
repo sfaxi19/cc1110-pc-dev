@@ -6,3 +6,4 @@ cc1110-dev
 *.dump
 *.csv
 logs/
+*.txt
