@@ -113,21 +113,14 @@ void parsing_dump_by_msg(std::vector<uint8_t>& msg, const char* rx_filename)
         ber_file << std::endl;
         auto it_cnt = rssi_cnt_map.cbegin();
         auto it_berr = rssi_bit_err_map.cbegin();
-        int cnt = 0;
+
         for(auto& it_err : rssi_error_map)
         {
             double per = (double)it_err.second/it_cnt->second;
             double ber = (double)it_berr->second/(it_cnt->second * 8 * msg.size());
-            if (++cnt == rssi_error_map.size())
-            {
-                per_file << 10*log10(0) << ",";
-                ber_file << 10*log10(0) << ",";
-            }
-            else
-            {
-                per_file << 10*log10(per) << ",";
-                ber_file << 10*log10(ber) << ",";                
-            }
+            per_file << per << ",";
+            ber_file << ber << ",";                
+
 
             INFO("RSSI: %3d\t PACKETS: %4u\t pERRORS: %4u\t PER: %6.4f \tbERRORS: %4u\t BER: %6.4f\n", it_err.first, it_cnt->second, it_err.second, per, it_berr->second, ber);
             it_cnt++;
