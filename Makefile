@@ -1,7 +1,7 @@
-CC=g++ -std=c++17 -pthread -g 
+CC=g++-7 -std=c++17 -pthread -g 
 CFLAGS=\
 	 -Ilibserial/api \
-	 -Iapi
+	 -Ilibcc1110-dev/api
 
 LIBSERIAL_SRC=\
 	libserial/SerialPort.cpp \
@@ -11,39 +11,56 @@ LIBSERIAL_API=\
 	libserial/api/*
 
 CC1110_SRC=\
-	src/BoardClient.cpp \
-	src/DumpParsing.cpp \
-	src/settings.cpp \
-	src/link_fsm.cpp \
-	src/msg_format.cpp \
-	src/utils.cpp \
-	src/global.cpp \
-	src/main.cpp
+	libcc1110-dev/src/BoardClient.cpp \
+	libcc1110-dev/src/DumpParsing.cpp \
+	libcc1110-dev/src/settings.cpp \
+	libcc1110-dev/src/link_fsm.cpp \
+	libcc1110-dev/src/msg_format.cpp \
+	libcc1110-dev/src/utils.cpp \
+	libcc1110-dev/src/global.cpp
 CC1110_API=\
-	./api/*.hpp
+	./libcc1110-dev/api/*.hpp
 
 EXE=cc1110-dev
-LIBSERIAL=libserial.so.1.0
-PREFIX=/usr/local/bin
-LIBPREFIX=/usr/lib
 
-.PHONY: all clean install uninstall
+LIBSERIAL=libserial.so
+LIBCC1110_DEV=libcc1110-dev.so
 
-all: $(EXE)
+LIB_PREFIX=/usr/lib
+INCLUDE_PREFIX=/usr/include
 
-$(LIBSERIAL): $(LIBSERIAL_SRC) $(LIBSERIAL_API)
+.PHONY: clean install uninstall install-libcc1110-dev install-libserial libserial cc1110-dev test
+
+all: test
+
+libserial: $(LIBSERIAL_SRC) $(LIBSERIAL_API)
 	$(CC) -c -fPIC $(CFLAGS) $(LIBSERIAL_SRC)
 	$(CC) -shared *.o $(CFLAGS) -o $(LIBSERIAL)
 
-$(EXE): $(LIBSERIAL) $(CC1110_SRC) $(CC1110_API)
-	$(CC) -o $(EXE) $(CFLAGS) $(CC1110_SRC) $(LIBSERIAL)
+cc1110-dev: $(CC1110_SRC) $(CC1110_API) $(LIBSERIAL)
+	$(CC) -c -fPIC $(CFLAGS) $(CC1110_SRC)
+	$(CC) -shared *.o $(CFLAGS) -o $(LIBCC1110_DEV)
+
+test: main.cpp
+	$(CC) main.cpp -o $(EXE) $(CFLAGS) -L. -lcc1110-dev -lserial
 
 clean:
-	rm *.o $(LIBSERIAL)
+	rm *.o $(LIBSERIAL) $(LIBCC1110_DEV)
 
-install:
-	install $(EXE) $(PREFIX)
-	install $(LIBSERIAL) $(LIBPREFIX) 
+install-libcc1110-dev:
+	mkdir -p $(INCLUDE_PREFIX)/cc1110-dev
+	cp libcc1110-dev/api/* $(INCLUDE_PREFIX)/cc1110-dev
+	install $(LIBCC1110_DEV) $(LIB_PREFIX)
+
+install-libserial:
+	mkdir -p $(INCLUDE_PREFIX)/libserial
+	cp libserial/api/* $(INCLUDE_PREFIX)/libserial
+	install $(LIBSERIAL) $(LIB_PREFIX)
+
+install: install-libcc1110-dev install-libserial
+
 uninstall:
-	rm $(PREFIX)/$(EXE)
-	rm $(LIBPREFIX)/$(LIBSERIAL)
+	rm $(LIB_PREFIX)/$(LIBSERIAL)
+	rm $(LIB_PREFIX)/$(LIBCC1110_DEV)
+	rm -rf $(INCLUDE_PREFIX)/cc1110-dev
+	rm -rf $(INCLUDE_PREFIX)/libserial

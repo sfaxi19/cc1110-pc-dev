@@ -1,5 +1,6 @@
 *.o
-*.so.1.0
+*.so*
+*.a
 sublimetext3/
 cc1110-dev
 *.log

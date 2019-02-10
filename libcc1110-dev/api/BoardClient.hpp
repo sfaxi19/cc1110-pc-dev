@@ -7,7 +7,7 @@
 
 #include "global.hpp"
 #include "link_fsm.hpp"
-#include "ISerialPort.hpp"
+#include <libserial/ISerialPort.hpp>
 
 #include "utils.hpp"
 #include "msg_format.hpp"
@@ -74,6 +74,7 @@ public:
     std::vector<uint8_t>* FrontPacket();
     void                  PopPacket();
     settings_s&           GetSettings() { return m_settings; }
+    settings_s&           SetSettings(settings_s& settings) { m_settings = settings; return m_settings; }
 
     void                  SetReceiveCallback(receive_callback_t recv_callback) { m_recv_callback = recv_callback; }
 
