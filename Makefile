@@ -38,7 +38,7 @@ $(LIBCC1110_DEV): $(CC1110_SRC) $(CC1110_API) $(LIBSERIAL_SRC) $(LIBSERIAL_API)
 	$(CXX) -shared *.o $(CFLAGS) -o $(LIBCC1110_DEV)
 
 test: main.cpp
-	$(CXX) main.cpp -o $(EXE) -llibcc1110-dev
+	$(CXX) main.cpp -o $(EXE) -lcc1110-dev
 
 clean:
 	rm *.o $(LIBCC1110_DEV)
