@@ -1,4 +1,4 @@
-CC=g++-7 -std=c++17 -pthread -g 
+CXX=g++-7 -std=c++17 -pthread -g 
 CFLAGS=\
 	 -Ilibserial/api \
 	 -Ilibcc1110-dev/api
@@ -29,38 +29,26 @@ LIBCC1110_DEV=libcc1110-dev.so
 LIB_PREFIX=/usr/lib
 INCLUDE_PREFIX=/usr/include
 
-.PHONY: clean install uninstall install-libcc1110-dev install-libserial libserial cc1110-dev test
+.PHONY: all clean install uninstall test
 
-all: test
+all: $(LIBCC1110_DEV)
 
-libserial: $(LIBSERIAL_SRC) $(LIBSERIAL_API)
-	$(CC) -c -fPIC $(CFLAGS) $(LIBSERIAL_SRC)
-	$(CC) -shared *.o $(CFLAGS) -o $(LIBSERIAL)
-
-cc1110-dev: $(CC1110_SRC) $(CC1110_API) $(LIBSERIAL)
-	$(CC) -c -fPIC $(CFLAGS) $(CC1110_SRC)
-	$(CC) -shared *.o $(CFLAGS) -o $(LIBCC1110_DEV)
+$(LIBCC1110_DEV): $(CC1110_SRC) $(CC1110_API) $(LIBSERIAL_SRC) $(LIBSERIAL_API)
+	$(CXX) -c -fPIC $(CFLAGS) $(CC1110_SRC) $(LIBSERIAL_SRC)
+	$(CXX) -shared *.o $(CFLAGS) -o $(LIBCC1110_DEV)
 
 test: main.cpp
-	$(CC) main.cpp -o $(EXE) $(CFLAGS) -L. -lcc1110-dev -lserial
+	$(CXX) main.cpp -o $(EXE) -llibcc1110-dev
 
 clean:
-	rm *.o $(LIBSERIAL) $(LIBCC1110_DEV)
+	rm *.o $(LIBCC1110_DEV)
 
-install-libcc1110-dev:
+install: 
 	mkdir -p $(INCLUDE_PREFIX)/cc1110-dev
 	cp libcc1110-dev/api/* $(INCLUDE_PREFIX)/cc1110-dev
+	cp libserial/api/* $(INCLUDE_PREFIX)/cc1110-dev
 	install $(LIBCC1110_DEV) $(LIB_PREFIX)
 
-install-libserial:
-	mkdir -p $(INCLUDE_PREFIX)/libserial
-	cp libserial/api/* $(INCLUDE_PREFIX)/libserial
-	install $(LIBSERIAL) $(LIB_PREFIX)
-
-install: install-libcc1110-dev install-libserial
-
 uninstall:
-	rm $(LIB_PREFIX)/$(LIBSERIAL)
 	rm $(LIB_PREFIX)/$(LIBCC1110_DEV)
 	rm -rf $(INCLUDE_PREFIX)/cc1110-dev
-	rm -rf $(INCLUDE_PREFIX)/libserial

@@ -3,7 +3,6 @@
 
 #include <chrono>
 #include <thread>
-#include <libserial/SerialPort.h>
 
 #include "link_fsm.hpp"
 #include "utils.hpp"

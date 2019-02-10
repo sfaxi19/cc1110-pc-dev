@@ -3,7 +3,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
-#include <libserial/SerialPort.h>
+#include "SerialPort.h"
 
 #include "msg_format.hpp"
 

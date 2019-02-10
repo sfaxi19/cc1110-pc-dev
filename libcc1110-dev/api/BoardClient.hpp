@@ -7,7 +7,7 @@
 
 #include "global.hpp"
 #include "link_fsm.hpp"
-#include <libserial/ISerialPort.hpp>
+#include "ISerialPort.hpp"
 
 #include "utils.hpp"
 #include "msg_format.hpp"
