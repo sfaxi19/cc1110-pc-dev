@@ -61,8 +61,14 @@ void BoardClient::BaseLoop()
 bool BoardClient::Run()
 {
     TRACE_FUNCTION();
-    INFO("PATH: %s\n", m_board_path.c_str());
-    INFO("MODE: %s\n\n", toString(m_mode));
+    m_settings.MODE = m_mode;
+    m_settings.SetCRCEnable(0);
+    m_settings.SetPacketLength(m_packet_len);
+
+    INFO("BOARD PATH      : %s\n", m_board_path.c_str());
+    INFO("RADIO MODE      : %s\n", toString(m_mode));
+    INFO("PACKET LENGTH   : %u\n", GetSettings().GetPacketLength());
+    INFO("TRANSMISSIONS   : %u\n\n", GetSettings().GetTransmissions());
 
 	if (!Setup(m_serial_port, m_board_path))
     {

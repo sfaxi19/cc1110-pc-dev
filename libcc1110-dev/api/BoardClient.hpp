@@ -47,11 +47,9 @@ public:
 	BoardClient(std::string board_path, eMode mode, uint8_t packet_len, const char* filename = nullptr) 
 		: m_link_fsm{this, m_serial_port, mode, getDumpFileName(filename, mode)}
         , m_mode{mode}
+        , m_packet_len{packet_len}
 	    , m_board_path{board_path}
     {
-        m_settings.MODE = m_mode;
-        m_settings.SetCRCEnable(0);
-        m_settings.SetPacketLength(packet_len);
     }
 
 	~BoardClient()
@@ -84,7 +82,8 @@ private:
 	SerialPort_t                    m_serial_port;
 	LinkFsm                         m_link_fsm;
 
-    eMode                           m_mode;    
+    eMode                           m_mode;
+    uint8_t                         m_packet_len;
     std::list<std::vector<uint8_t>> m_packets;
     settings_s                      m_settings;
 
