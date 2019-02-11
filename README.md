@@ -14,17 +14,17 @@ sudo make install
 ```
 
 ## How to check?
-1. Necessory to compile test program:
+1. First you need to compile test program:
 ```bash
 make test
 ```
 2. Launch receiver:
 ```bash
-./cc1110-dev /dev/ttyUSB0 --rx
+sudo ./cc1110-dev /dev/ttyUSB0 --rx
 ```
 3. Launch transmitter:
 ```bash
-./cc1110-dev /dev/ttyUSB1 --tx
+sudo ./cc1110-dev /dev/ttyUSB1 --tx
 ```
 
 ## How to use Smart RF studio to competent configure RF registers?
