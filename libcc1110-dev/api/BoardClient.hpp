@@ -52,16 +52,7 @@ public:
     {
     }
 
-	~BoardClient()
-	{
-        terminate = true;
-        m_thread.join();
-		m_serial_port.Close();
-	}
-
-	bool Setup(SerialPort_t& serial_port, std::string path);
 	bool Run();
-    void BaseLoop();
     bool IsActive() { return m_link_fsm.IsActive(); }
 
     bool                  SendPacket(uint8_t *data, size_t size);
@@ -79,6 +70,11 @@ public:
     void                  WaitForActive();
 
 private:
+
+    bool Setup(SerialPort_t& serial_port, std::string path);
+    
+    void BaseLoop();
+
 	SerialPort_t                    m_serial_port;
 	LinkFsm                         m_link_fsm;
 
