@@ -6,6 +6,11 @@
 #include "global.hpp"
 #include "settings.hpp"
 
+namespace cc1110::msg
+{
+	class packet_s;
+}
+
 namespace cc1110
 {
 
@@ -22,17 +27,11 @@ enum eStateId
 {
 	UNKNOWN,
 	SETUP,
-	INIT, 
-	CONNECTING, 
+	INIT,
+	CONNECTING,
 	TX_ACTIVE,
 	RX_ACTIVE,
 	END
-};
-
-enum eMode
-{
-	RADIO_MODE_TX = 0x10,
-	RADIO_MODE_RX = 0x20
 };
 
 const char* toString(eMode);
@@ -45,13 +44,15 @@ class header_s;
 class LinkFsm
 {
 public:
-	LinkFsm(BoardClient* board_client, SerialPort_t& serial_port, eMode mode, const char*);
+	LinkFsm(BoardClient* board_client, SerialPort_t& serial_port, const char*);
 
-	void activate();
+	void Activate();
 
-	void OnMessage(msg::header_s msg_header, std::vector<uint8_t>&);
+	void OnMessage(msg::packet_s& packet);//msg::header_s msg_header, std::vector<uint8_t>&);
 
 	void OnTimeout();
+
+	void Configure();
 
 	void SendWakeUp();
 
@@ -59,8 +60,10 @@ public:
 	void SendSetupAck();
 	void SendSetupErr();
 	
-	void SendTxDataReq();
+	void SendTxDataReq(std::vector<uint8_t>& data);
 	void SendTxDataAck();
+
+	void SendErr();
 
 	bool IsActive();
 
@@ -73,8 +76,9 @@ private:
 	BoardClient*             m_board_client;
 	LinkFsmState*            m_state;
 	SerialPort_t&            m_serial_port;
-	eMode                    m_mode;
 	std::ofstream            m_file;
+
+	uint32_t                 m_tx_delay{1};
 	
 	friend LinkFsmState;
 	friend LinkFsmStateInit;

@@ -1,7 +1,16 @@
 #pragma once
- 
+
+#include "global.hpp"
+
 namespace cc1110
 {
+
+enum eMode
+{
+	RADIO_MODE_TX = 0x10,
+	RADIO_MODE_RX = 0x20
+};
+
 struct settings_s
 {
 	uint8_t CC1110_SYNC1 =       0xD3;
@@ -58,18 +67,23 @@ struct settings_s
 	uint8_t CC1110_MARCSTATE =   0x01;
 	uint8_t CC1110_PKTSTATUS =   0x00;
 	uint8_t CC1110_VCO_VC_DAC =  0x94;
+
+private:
 	uint8_t MODE =               0x00;
 	uint8_t DUMMY_BYTE =         0x00;
-	uint32_t TRANSMISSIONS =     0x01;
 
 	void     SetPacketLength(uint8_t len);
-	uint8_t  GetPacketLength() const;
-
 	void     SetCRCEnable(uint8_t enable);
+	void     SetMode(eMode mode);
+	void     Enable() { DUMMY_BYTE = 1; }
 
-	void     SetTransmissions(uint32_t cnt);
-	uint32_t GetTransmissions();
+public:
+	eMode      GetMode()          const { return static_cast<eMode>(MODE); }
+	uint8_t    GetPacketLength()  const { return CC1110_PKTLEN;            }
+	bool       IsEnabled()        const { return DUMMY_BYTE > 0;           }
 
+
+	friend class BoardClient;
 };
 
 }

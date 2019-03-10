@@ -22,4 +22,28 @@ void print_message(std::string title, const std::vector<uint8_t>& msg, msg::head
 	TRACE("\n");
 }
 
+uint16_t crc16(uint8_t* data, uint16_t size)
+{
+	uint16_t p = 0x8005;
+	uint16_t crc = 0;
+	DEBUG("CRC CALCULATE: ");
+	for (int d = 0; d < size; d++)
+	{
+		DEBUG("%02x ", data[d]);
+		crc ^= data[d];
+		int shifts = (d == size-1) ? 16 : 8;
+
+		for (int i = 0; i < shifts; ++i)
+		{
+			if (crc & 0x8000)
+				crc = (crc << 1) ^ p;
+			else
+				crc = (crc << 1);
+		}
+	}
+	DEBUG(" : %02x\n", crc);
+
+	return crc;
+}
+
 }

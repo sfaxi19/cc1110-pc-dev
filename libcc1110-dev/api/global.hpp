@@ -5,8 +5,6 @@
 #include <thread>
 #include "SerialPort.h"
 
-#include "msg_format.hpp"
-
 namespace cc1110
 {
 extern bool trace;
@@ -33,13 +31,17 @@ public:
 
 #define TRACE_FUNCTION() trace_func TRACE_FUNCTION{__FILE__, __PRETTY_FUNCTION__};
 
-const size_t timeout_milliseconds = 150;
+enum timers : size_t
+{
+    timeout_read_ms = 30,
+    timeout_send_ms = 10
+};
 
 
 namespace cc1110
 {
 
-const std::vector<uint8_t> test_data = 
+/*const std::vector<uint8_t> test_data = 
 {
         msg::WAKEUP_ACK, 0x00, 0x00, 0x00,
         msg::SETUP_RSP, 0x00,  0x38, 0x00, 
@@ -82,7 +84,7 @@ public:
     }
 
     uint32_t index = 0;
-};
+};*/
 
 //#define STUB 0
 

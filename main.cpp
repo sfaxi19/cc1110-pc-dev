@@ -91,6 +91,12 @@ void Init500kbps(cc1110::settings_s& settings) {
     settings.CC1110_VCO_VC_DAC = 0x94;
 }
 
+cc1110::settings_s Init500kbps() {
+    cc1110::settings_s settings;
+    Init500kbps(settings);
+    return settings;
+}
+
 void check_arg(char* arg)
 {
     if(arg != nullptr)
@@ -111,23 +117,21 @@ void callback_receive(std::vector<uint8_t>& msg)
 
 void board_client_rx(const char* linkpath, uint8_t msg_size)
 {
-    cc1110::BoardClient client{linkpath, cc1110::RADIO_MODE_RX, msg_size};
-    Init500kbps(client.GetSettings());
+    cc1110::BoardClient client{linkpath};
+
+    client.Configure(Init500kbps(), cc1110::RADIO_MODE_RX, msg_size);
     client.SetReceiveCallback(callback_receive);
     client.Run();
-
-    while(true){}
 }
 
 void board_client_tx(const char* linkpath, std::vector<uint8_t>& msg, uint8_t msg_size)
 {
-    cc1110::BoardClient client{linkpath, cc1110::RADIO_MODE_TX, msg_size};
-    Init500kbps(client.GetSettings());
-    client.GetSettings().SetTransmissions(200); 
-    client.Run();
-    client.WaitForActive();
+    cc1110::BoardClient client{linkpath};
 
-    if (!client.SendPacket(msg)) ERR("Failure message sending!\n");
+    client.Configure(Init500kbps(), cc1110::RADIO_MODE_TX, msg_size);
+    client.Run();
+
+    client.SendPacket(msg, 4);
 }
 
 int main(int args, char** argv)
@@ -136,6 +140,7 @@ int main(int args, char** argv)
     check_arg(argv[2]);
     check_arg(argv[3]);
     check_arg(argv[4]);
+    check_arg(argv[5]);
 
     std::vector<uint8_t> msg{0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x70};
     uint8_t MSG_SIZE = msg.size();

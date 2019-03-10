@@ -32,4 +32,7 @@ inline bool file_exist(const char* filename)
     return infile.good();
 }
 
+uint16_t crc16(uint8_t* data, uint16_t size);
+
+
 }

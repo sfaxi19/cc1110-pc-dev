@@ -41,12 +41,11 @@ public:
 	virtual const char* name() = 0;
 
 	virtual void OnStart(LinkFsm* link)                              { LOG("Unexpected event for %s state\n", name()); }
-	virtual void OnMessage(LinkFsm* link, 
-						   msg::header_s msg_header, 
-						   std::vector<uint8_t>& msg)                { LOG("Unexpected event for %s state\n", name()); }
+	virtual void OnMessage(LinkFsm* link, msg::packet_s& packet)     { LOG("Unexpected event for %s state\n", name()); }
 	virtual void OnEntry(LinkFsm* link)                              { /*LOG("Unexpected event for %s state\n", name());*/ }
 	virtual void OnExit(LinkFsm* link)                               { /*LOG("Unexpected event for %s state\n", name());*/ }
 	virtual void OnTimeout(LinkFsm* link)                            { /*LOG("Unexpected event for %s state\n", name());*/ }
+	virtual void OnConfigure(LinkFsm* link)                          { ChangeState<LinkFsmStateSetup>(link); }
 
 	template<class STATE>
 	void ChangeState(LinkFsm* link)
@@ -87,26 +86,19 @@ public:
 	LinkFsmStateConnecting() : LinkFsmState(eStateId::CONNECTING) {}
 	const char* name() override { return "CONNECTING"; }
 
-	void OnMessage(LinkFsm* link, msg::header_s msg_header, std::vector<uint8_t>& msg) override
+	void OnMessage(LinkFsm* link, msg::packet_s& packet) override
 	{
-		//print_message("Received", msg);
-			
-		switch(msg_header.type)
+		switch(packet.header.type)
 		{
 			case msg::WAKEUP_ACK:
 				LOG("WAKEUP_ACK\n");
 				ChangeState<LinkFsmStateSetup>(link);
-				break;
-			case msg::ERR:
-				LOG("ERR\n");
-				ChangeState<LinkFsmStateEnd>(link);
 				break;
 			default:
 				LOG("Unexpected messate in %s state\n", name());
 				break;
 		}
 	}
-
 
 	void OnTimeout(LinkFsm* link) override
 	{
@@ -128,29 +120,22 @@ public:
 	LinkFsmStateSetup() : LinkFsmState(eStateId::SETUP) {}
 	const char* name() override { return "SETUP"; }
 	
-	void OnMessage(LinkFsm* link, msg::header_s msg_header, std::vector<uint8_t>& msg) override
+	void OnMessage(LinkFsm* link, msg::packet_s& packet) override
 	{
-		switch(msg_header.type)
+		switch(packet.header.type)
 		{
-			case msg::SETUP_RSP:
-				LOG("SETUP_RSP\n");
-				if(msg_header.size ==  msg.size())
+			case msg::SETUP_ACK:
+				LOG("SETUP_ACK\n");
+
+				if (link->m_board_client->GetSettings().GetMode() == eMode::RADIO_MODE_TX)
 				{
-					link->SendSetupAck();
-					if (link->m_mode == eMode::RADIO_MODE_TX)
-					{
-						ChangeState<LinkFsmStateTxActive>(link);
-					}
-					else
-					{
-						ChangeState<LinkFsmStateRxActive>(link);
-					}
+					ChangeState<LinkFsmStateTxActive>(link);
 				}
 				else
 				{
-					link->SendSetupErr();
-					ERR("Failure! SETUP_RSP message has bad format.\n");
+					ChangeState<LinkFsmStateRxActive>(link);
 				}
+
 				break;
 			case msg::SETUP_ERR:
 				LOG("SETUP_ERR\n");
@@ -169,7 +154,6 @@ public:
 		{
 			OnEntry(link);	
 		}
-		
 	}
 
 	void OnEntry(LinkFsm* link) override
@@ -191,32 +175,19 @@ public:
 	LinkFsmStateTxActive() : LinkFsmState(eStateId::TX_ACTIVE) {}
 	const char* name() override { return "TX_ACTIVE"; }
 
-	void OnMessage(LinkFsm* link, msg::header_s msg_header, std::vector<uint8_t>& msg) override
+	void OnMessage(LinkFsm* link, msg::packet_s& packet) override
 	{
 		TRACE_FUNCTION();
-		switch(msg_header.type)
+		switch(packet.header.type)
 		{
-			case msg::DATA_RSP:
-				if (!link->m_board_client->IsPacketListEmpty())
-				{
-					if (msg.size() == msg_header.size && msg == *link->m_board_client->FrontPacket())
-					{
-						uint32_t pktCnt = 0;
-						while(pktCnt++ < link->m_board_client->GetSettings().GetTransmissions())
-						{
-							link->SaveToFile(reinterpret_cast<char*>(msg.data()), msg.size());
-						}
-						link->m_board_client->PopPacket();
-						link->SendTxDataAck();
-						INFO("Data has sent: [");
-						std::for_each(msg.begin(), msg.end(), [](auto& val){ INFO("%02x ", val); });
-						INFO("]\n");
-					}
-					OnEntry(link);
-				}
+			case msg::DATA_ACK:
+				LOG("DATA_ACK\n");
+				link->m_board_client->PopPacket();
+				OnEntry(link);
+				
 				break;
 			default:
-				LOG("Unexpected messate in %s state\n", name());
+				LOG("Unexpected message in %s state\n", name());
 				break;
     	}
 	}
@@ -226,7 +197,9 @@ public:
 		TRACE_FUNCTION();
 		if (!link->m_board_client->IsPacketListEmpty())
 		{
-			link->SendTxDataReq();
+			link->SendTxDataReq(*link->m_board_client->FrontPacket());
+			//HACK: last four bytes of packet is TRANSMISSIONS info
+			link->m_tx_delay = *(uint32_t*)&(*link->m_board_client->FrontPacket())[link->m_board_client->FrontPacket()->size() - sizeof(uint32_t)];
 		}
 	}
 
@@ -238,7 +211,13 @@ public:
 	void OnTimeout(LinkFsm* link) override
 	{
 		TRACE_FUNCTION();
-		OnEntry(link);
+		static uint32_t cnt = 0;
+		if (++cnt >= link->m_tx_delay)
+		{
+			OnEntry(link);
+			cnt = 0;
+		}
+		
 	}
 };
 
@@ -250,18 +229,21 @@ public:
 	LinkFsmStateRxActive() : LinkFsmState(eStateId::RX_ACTIVE) {}
 	const char* name() override { return "RX_ACTIVE"; }
 
-	void OnMessage(LinkFsm* link, msg::header_s msg_header, std::vector<uint8_t>& msg) override
+	void OnMessage(LinkFsm* link, msg::packet_s& packet) override // msg::header_s msg_header, std::vector<uint8_t>& msg) override
 	{
-		switch(msg_header.type)
+		switch(packet.header.type)
 		{
 			case msg::DATA_REQ:
 			{
 				LOG("DATA_REQ\n");
+				std::vector<uint8_t> msg(packet.data, packet.data + packet.header.size);
+
 				link->SaveToFile(reinterpret_cast<char*>(msg.data()), msg.size());
 				link->ReceiveCallback(msg);
 
 				LOG("Data has received: [");
 				std::for_each(msg.begin(), msg.end() - 2, [](auto& val){ LOG("%02x ", val); });
+
 				int rssi = rssi_converter(msg[msg.size() - 2]);
 				uint8_t lqi = msg[msg.size() - 1];
 				LOG("] RSSI: %d  LQI: %u\n", rssi, lqi);
@@ -296,23 +278,33 @@ public:
 
 
 
-LinkFsm::LinkFsm(BoardClient* board_client, SerialPort_t& serial_port, eMode mode, const char* filename) 
+LinkFsm::LinkFsm(BoardClient* board_client, SerialPort_t& serial_port, const char* filename) 
 	: m_board_client{board_client}
 	, m_serial_port{serial_port}
-	, m_mode{mode}
-	, m_file{filename}
 {
+	if (filename)
+	{
+		m_file = std::ofstream(filename);
+	}
 	m_state = singleton<LinkFsmStateInit>::getInstanse();
 }
 
-void LinkFsm::activate()
+void LinkFsm::Activate()
 { 
 	m_state->OnStart(this);
 }
 
-void LinkFsm::OnMessage(msg::header_s msg_header, std::vector<uint8_t>& msg)
+void LinkFsm::Configure()
+{
+	if (m_state->GetStateId() != eStateId::INIT)
+	{
+		m_state->OnConfigure(this);
+	}
+}
+
+void LinkFsm::OnMessage(msg::packet_s& packet)//msg::header_s msg_header, std::vector<uint8_t>& msg)
 { 
-	m_state->OnMessage(this, msg_header, msg); 
+	m_state->OnMessage(this, packet);//msg_header, msg); 
 }
 
 void LinkFsm::OnTimeout()
@@ -322,8 +314,9 @@ void LinkFsm::OnTimeout()
 
 void LinkFsm::SendWakeUp()
 {
-	msg::header_s header(msg::WAKEUP, 0);
-	std::vector<uint8_t> msg(reinterpret_cast<uint8_t*>(&header), reinterpret_cast<uint8_t*>(&header) + sizeof(msg::header_s));
+	msg::packet_s packet(msg::WAKEUP);
+
+	std::vector<uint8_t> msg = msg::encode(packet);
 
 	m_serial_port.Write(msg);
 	print_message(__FUNCTION__, msg);
@@ -331,9 +324,12 @@ void LinkFsm::SendWakeUp()
 
 void LinkFsm::SendSetupRequest()
 {
-	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	msg::setup_req_s setup_req{m_board_client->GetSettings()};
-	std::vector<uint8_t> msg(reinterpret_cast<uint8_t*>(&setup_req), reinterpret_cast<uint8_t*>(&setup_req) + sizeof(setup_req));
+	std::this_thread::sleep_for(std::chrono::milliseconds(timers::timeout_send_ms));
+
+	msg::packet_s packet(msg::SETUP_REQ, sizeof(m_board_client->GetSettings()));
+	packet.assign(&m_board_client->GetSettings(), sizeof(m_board_client->GetSettings()));
+
+	std::vector<uint8_t> msg = msg::encode(packet);
 
 	m_serial_port.Write(msg);
 	print_message(__FUNCTION__, msg);
@@ -341,8 +337,8 @@ void LinkFsm::SendSetupRequest()
 
 void LinkFsm::SendSetupAck()
 {
-	msg::header_s header(msg::SETUP_ACK, 0);
-	std::vector<uint8_t> msg(reinterpret_cast<uint8_t*>(&header), reinterpret_cast<uint8_t*>(&header) + sizeof(msg::header_s));
+	msg::packet_s packet(msg::SETUP_ACK);
+	std::vector<uint8_t> msg = msg::encode(packet);
 
 	m_serial_port.Write(msg);
 	print_message(__FUNCTION__, msg);	
@@ -351,26 +347,20 @@ void LinkFsm::SendSetupAck()
 
 void LinkFsm::SendSetupErr()
 {
-	msg::header_s header(msg::SETUP_ERR, 0);
-	std::vector<uint8_t> msg(reinterpret_cast<uint8_t*>(&header), reinterpret_cast<uint8_t*>(&header) + sizeof(msg::header_s));
+	msg::packet_s packet(msg::SETUP_ERR);
+	std::vector<uint8_t> msg = msg::encode(packet);
 
 	m_serial_port.Write(msg);
 	print_message(__FUNCTION__, msg);	
 }
 
-void LinkFsm::SendTxDataReq()
+void LinkFsm::SendTxDataReq(std::vector<uint8_t>& data)
 {
-	static uint8_t counter = 0;
-	std::this_thread::sleep_for(std::chrono::milliseconds(100));
-	std::vector<uint8_t>& data = *m_board_client->FrontPacket();
-	uint32_t DATA_SIZE = data.size();
-	uint32_t MSG_SIZE = DATA_SIZE + sizeof(msg::header_s);
-
-	std::vector<uint8_t> msg(MSG_SIZE);
-
-	msg::header_s header(msg::DATA_REQ, DATA_SIZE);
-	std::copy((uint8_t *)&header, (uint8_t *)(&header + sizeof(header)), msg.begin());
-	std::copy(data.begin(), data.end(), msg.begin() + sizeof(header));
+	std::this_thread::sleep_for(std::chrono::milliseconds(timers::timeout_send_ms));
+	
+	msg::packet_s packet(msg::DATA_REQ, data.size());
+	packet.assign(data.data(), data.size());
+	std::vector<uint8_t> msg = msg::encode(packet);
 
 	m_serial_port.Write(msg);
 	print_message(__FUNCTION__, msg);
@@ -378,10 +368,22 @@ void LinkFsm::SendTxDataReq()
 
 void LinkFsm::SendTxDataAck()
 {
-	msg::header_s header(msg::DATA_ACK, 0);
-	std::vector<uint8_t> msg(reinterpret_cast<uint8_t*>(&header), reinterpret_cast<uint8_t*>(&header) + sizeof(msg::header_s));
+	std::this_thread::sleep_for(std::chrono::milliseconds(timers::timeout_send_ms));
 
-	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	msg::packet_s packet(msg::DATA_ACK);
+	std::vector<uint8_t> msg = msg::encode(packet);
+
+	m_serial_port.Write(msg);
+	print_message(__FUNCTION__, msg);	
+}
+
+void LinkFsm::SendErr()
+{
+	std::this_thread::sleep_for(std::chrono::milliseconds(timers::timeout_send_ms));
+
+	msg::packet_s packet(msg::ERR);
+	std::vector<uint8_t> msg = msg::encode(packet);
+
 	m_serial_port.Write(msg);
 	print_message(__FUNCTION__, msg);	
 }
@@ -393,17 +395,17 @@ bool LinkFsm::IsActive()
 
 void LinkFsm::SaveToFile(const char* data, size_t size)
 {
-	uint8_t size8 = (uint8_t) size;
 	if (m_file.is_open())
 	{
+		uint8_t size8 = (uint8_t) size;
 		m_file.write(reinterpret_cast<char*>(&size8), sizeof(size8));
 		m_file.write(data, size);
 		m_file.flush();
 	}
-	else
-	{
-		ERR("%s: Fail!", __PRETTY_FUNCTION__);
-	}
+	// else
+	// {
+	// 	ERR("%s: Fail!", __PRETTY_FUNCTION__);
+	// }
 }
 
 void LinkFsm::ReceiveCallback(std::vector<uint8_t>& msg)

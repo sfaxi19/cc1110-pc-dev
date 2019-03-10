@@ -15,22 +15,23 @@
 namespace cc1110
 {
 
-inline const char* getDumpFileName(const char* filename, eMode mode)
+inline const char* getDumpFileName(const char* filename)
 {
     static char dump_name[20];
 
     if (!filename)
     {
-        uint8_t num = 1;
-        do
-        {
-            if (mode == RADIO_MODE_TX) 
-                { sprintf(dump_name, "tx.%03u.dump", num++);}
-            else                       
-                { sprintf(dump_name, "rx.%03u.dump", num++);}
-        } while(file_exist(dump_name) && num < 255);
+        // uint8_t num = 1;
+        // do
+        // {
+        //     if (mode == RADIO_MODE_TX) 
+        //         { sprintf(dump_name, "tx.%03u.dump", num++);}
+        //     else                       
+        //         { sprintf(dump_name, "rx.%03u.dump", num++);}
+        // } while(file_exist(dump_name) && num < 255);
 
-        return dump_name;
+        // return dump_name;
+        return nullptr;
     }
     else
     {
@@ -44,31 +45,19 @@ public:
 
     using receive_callback_t = std::function<void(std::vector<uint8_t>& msg)>;
 
-	BoardClient(std::string board_path, eMode mode, uint8_t packet_len, const char* filename = nullptr) 
-		: m_link_fsm{this, m_serial_port, mode, getDumpFileName(filename, mode)}
-        , m_mode{mode}
-        , m_packet_len{packet_len}
-	    , m_board_path{board_path}
-    {
-    }
+	BoardClient(std::string board_path, const char* filename = nullptr);
 
-	~BoardClient()
-	{
-        terminate = true;
-        m_thread.join();
-		m_serial_port.Close();
-	}
+	~BoardClient();
 
-	bool Run();
-    bool IsActive() { return m_link_fsm.IsActive(); }
-
-    bool                  SendPacket(uint8_t *data, size_t size);
-    bool                  SendPacket(std::vector<uint8_t>& msg);
+	bool                  Run();
+    bool                  IsActive() { return m_link_fsm.IsActive() && terminate == false; }
+    bool                  SendPacket(std::vector<uint8_t>& msg, uint32_t transmissions = 1);
     bool                  IsPacketListEmpty() const;
     size_t                PacketListSize() const { return m_packets.size(); }
 
     std::vector<uint8_t>* FrontPacket();
     void                  PopPacket();
+
     settings_s&           GetSettings() { return m_settings; }
     settings_s&           SetSettings(settings_s& settings) { m_settings = settings; return m_settings; }
 
@@ -76,15 +65,20 @@ public:
 
     void                  WaitForActive();
 
-private:
-    bool Setup(SerialPort_t& serial_port, std::string path);
-    void BaseLoop();
+    void                  Configure(settings_s settings, eMode mode, uint8_t msg_size);
 
+    void                  Stop();
+
+private:
+    bool                  SendPacket(uint8_t *data, size_t size);
+    bool                  Setup(SerialPort_t& serial_port, std::string path);
+    void                  BaseLoop();
+
+    uint16_t                        m_tx_delay{0};
+    
 	SerialPort_t                    m_serial_port;
 	LinkFsm                         m_link_fsm;
 
-    eMode                           m_mode;
-    uint8_t                         m_packet_len;
     std::list<std::vector<uint8_t>> m_packets;
     settings_s                      m_settings;
 
