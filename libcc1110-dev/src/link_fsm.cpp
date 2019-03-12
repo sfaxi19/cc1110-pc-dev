@@ -182,7 +182,7 @@ public:
 		{
 			case msg::DATA_ACK:
 				LOG("DATA_ACK\n");
-				link->m_board_client->PopPacket();
+				link->PopPacket();
 				OnEntry(link);
 				
 				break;
@@ -195,11 +195,11 @@ public:
 	void OnEntry(LinkFsm* link) override
 	{
 		TRACE_FUNCTION();
-		if (!link->m_board_client->IsPacketListEmpty())
+		if (!link->IsPacketListEmpty())
 		{
-			link->SendTxDataReq(*link->m_board_client->FrontPacket());
+			link->SendTxDataReq(*link->FrontPacket());
 			//HACK: last four bytes of packet is TRANSMISSIONS info
-			link->m_tx_delay = *(uint32_t*)&(*link->m_board_client->FrontPacket())[link->m_board_client->FrontPacket()->size() - sizeof(uint32_t)];
+			link->m_tx_delay = *(uint32_t*)&(*link->FrontPacket())[link->FrontPacket()->size() - sizeof(uint32_t)];
 		}
 	}
 
@@ -214,8 +214,8 @@ public:
 		static uint32_t cnt = 0;
 		if (++cnt >= link->m_tx_delay)
 		{
-			OnEntry(link);
 			cnt = 0;
+			OnEntry(link);
 		}
 		
 	}
@@ -390,7 +390,7 @@ void LinkFsm::SendErr()
 
 bool LinkFsm::IsActive()
 { 
-	return m_state->GetStateId() == eStateId::TX_ACTIVE; 
+	return m_state->GetStateId() != eStateId::INIT; 
 }
 
 void LinkFsm::SaveToFile(const char* data, size_t size)
@@ -410,7 +410,30 @@ void LinkFsm::SaveToFile(const char* data, size_t size)
 
 void LinkFsm::ReceiveCallback(std::vector<uint8_t>& msg)
 {
-	m_board_client->m_recv_callback(msg);
+	if (m_board_client->m_recv_callback)
+	{
+		m_board_client->m_recv_callback(msg);
+	}
 }
+
+bool LinkFsm::IsPacketListEmpty() const 
+{ 
+	return m_board_client->IsPacketListEmpty(); 
+}
+
+size_t LinkFsm::PacketListSize() const    
+{ 
+	return m_board_client->PacketListSize(); 
+}
+
+std::vector<uint8_t>* LinkFsm::FrontPacket()
+{ 
+	return m_board_client->FrontPacket(); 
+}
+
+void LinkFsm::PopPacket()
+{
+	return m_board_client->PopPacket();
+} 
 
 }

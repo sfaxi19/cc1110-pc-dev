@@ -1,5 +1,7 @@
 #include "BoardClient.hpp"
 
+#define CHECK_ACTIVE() if (!IsActive()) { ERR("%s function failed. BoardClient is not active!\n", __FUNCTION__); Stop(); exit(1); }
+
 namespace cc1110
 {
 
@@ -73,11 +75,14 @@ void BoardClient::BaseLoop()
 bool BoardClient::Run()
 {
     TRACE_FUNCTION();
+    if (IsActive())
+    {
+        return true;
+    }
 
     if (!m_settings.IsEnabled())
     {
         ERR("Settings is not configured!\n");
-        Stop();
         return false;
     }
 
@@ -88,7 +93,7 @@ bool BoardClient::Run()
     std::thread thr(&BoardClient::BaseLoop, this);
     m_thread = std::move(thr);
 
-    WaitForActive();
+    WaitingForActive();
 
 	return true;
 }
@@ -107,11 +112,33 @@ void BoardClient::Configure(settings_s settings, eMode mode, uint8_t packet_leng
     INFO("| PACKET LENGTH   : %20u |\n", GetSettings().GetPacketLength());
     INFO("+----------------------------------------+\n");
 
-    m_link_fsm.Configure();
+    if (!m_link_fsm.IsActive())
+    {
+        Run();
+    }
+    else
+    {
+        m_link_fsm.Configure();      
+    }
 }
 
-bool BoardClient::SendPacket(std::vector<uint8_t>& msg, uint32_t transmissions)
+bool BoardClient::SendPacketBlock(std::vector<uint8_t>& msg, uint32_t transmissions)
 {
+    CHECK_ACTIVE();
+    SendPacket(msg, transmissions);
+    WaitingForSend();
+}
+
+bool BoardClient::SendPacket(std::vector<uint8_t> msg, uint32_t transmissions)
+{
+    CHECK_ACTIVE();
+ 
+    if (msg.size() != GetSettings().GetPacketLength())
+    {
+        ERR("Packet length error! Actual: %zu != Expected: %u\n", msg.size(), GetSettings().GetPacketLength());
+        return false;
+    }
+
     for (int i = 0; i < sizeof(transmissions); i++)
     {
         msg.push_back(((uint8_t*)&transmissions)[i]);
@@ -123,17 +150,30 @@ bool BoardClient::SendPacket(std::vector<uint8_t>& msg, uint32_t transmissions)
 bool BoardClient::SendPacket(uint8_t *data, size_t size)
 {
 	TRACE_FUNCTION();
-    size_t data_size = size - sizeof(uint32_t);
-    
-	if (data_size != GetSettings().GetPacketLength())
-	{
-		ERR("Packet length error! %zu != %u\n", data_size, GetSettings().GetPacketLength());
-		return false;
-	}
+
 	std::lock_guard<std::mutex> lock(m_mtx);
 
     m_packets.emplace_back(data, data + size);
+
     return true;
+}
+
+std::vector<uint8_t> BoardClient::ReceivePacketBlock()
+{
+    CHECK_ACTIVE();
+    bool packet_received = false;
+    std::vector<uint8_t> recv_msg;
+    SetReceiveCallback([&recv_msg, &packet_received](auto& msg){ recv_msg.assign(msg.begin(), msg.end()); packet_received = true; });
+    while(!packet_received)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(timers::waitingfor_timer_ms));
+    }
+    return recv_msg;
+}
+
+void BoardClient::SetReceiveCallback(receive_callback_t recv_callback)
+{ 
+    m_recv_callback = recv_callback; 
 }
 
 bool BoardClient::IsPacketListEmpty() const
@@ -161,13 +201,29 @@ void BoardClient::PopPacket()
     m_packets.pop_front();
 } 
 
-void BoardClient::WaitForActive()
+void BoardClient::WaitingForActive()
 {
     while(!IsActive())
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        std::this_thread::sleep_for(std::chrono::milliseconds(timers::waitingfor_timer_ms));
     }
 }
+
+void BoardClient::WaitingForSend()
+{
+    CHECK_ACTIVE();
+    while(!IsPacketListEmpty())
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(timers::waitingfor_timer_ms));
+    }
+}
+
+void BoardClient::WaitingFor(size_t ms)
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+
 
 bool BoardClient::Setup(SerialPort_t& serial_port, std::string path)
 {

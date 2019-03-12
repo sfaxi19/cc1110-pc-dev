@@ -49,27 +49,32 @@ public:
 
 	~BoardClient();
 
+    void                  Configure(settings_s settings, eMode mode, uint8_t msg_size);
 	bool                  Run();
+    void                  Stop();
     bool                  IsActive() { return m_link_fsm.IsActive() && terminate == false; }
-    bool                  SendPacket(std::vector<uint8_t>& msg, uint32_t transmissions = 1);
+
+    bool                  SendPacket(std::vector<uint8_t> msg, uint32_t transmissions = 1);
+    bool                  SendPacketBlock(std::vector<uint8_t>& msg, uint32_t transmissions = 1);
+
+    std::vector<uint8_t>  ReceivePacketBlock();
+    void                  SetReceiveCallback(receive_callback_t recv_callback);
+
+    settings_s&           GetSettings() { return m_settings; }
+    settings_s&           SetSettings(settings_s& settings) { m_settings = settings; return m_settings; }
+
+    void                  WaitingForActive();
+    void                  WaitingForSend();
+    void                  WaitingForReceive();
+    void                  WaitingFor(size_t ms);
+
+private:
     bool                  IsPacketListEmpty() const;
     size_t                PacketListSize() const { return m_packets.size(); }
 
     std::vector<uint8_t>* FrontPacket();
     void                  PopPacket();
 
-    settings_s&           GetSettings() { return m_settings; }
-    settings_s&           SetSettings(settings_s& settings) { m_settings = settings; return m_settings; }
-
-    void                  SetReceiveCallback(receive_callback_t recv_callback) { m_recv_callback = recv_callback; }
-
-    void                  WaitForActive();
-
-    void                  Configure(settings_s settings, eMode mode, uint8_t msg_size);
-
-    void                  Stop();
-
-private:
     bool                  SendPacket(uint8_t *data, size_t size);
     bool                  Setup(SerialPort_t& serial_port, std::string path);
     void                  BaseLoop();

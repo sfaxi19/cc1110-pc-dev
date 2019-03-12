@@ -16,7 +16,7 @@ extern bool debug;
 #define TRACE(...) if(cc1110::trace){fprintf(stdout, __VA_ARGS__);}
 #define DEBUG(...) if(cc1110::debug)fprintf(stdout, __VA_ARGS__);
 #define IFLOG(...) if(cc1110::logging)
-#define ERR(...)   fprintf(stderr, __VA_ARGS__);
+#define ERR(...)   fprintf(stderr, "ERROR: " __VA_ARGS__);
 #define INFO(...)  fprintf(stdout, __VA_ARGS__);
 
 #define SET_BIT(BYTE, IDX, VALUE) BYTE = (BYTE & !(IDX)) | ((VALUE & 0x01) << IDX);
@@ -33,8 +33,9 @@ public:
 
 enum timers : size_t
 {
-    timeout_read_ms = 30,
-    timeout_send_ms = 10
+    timeout_read_ms = 100,
+    timeout_send_ms = 100,
+    waitingfor_timer_ms = 150
 };
 
 

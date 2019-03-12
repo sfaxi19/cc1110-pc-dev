@@ -71,6 +71,10 @@ public:
 
 	void ReceiveCallback(std::vector<uint8_t>& msg);
 
+    bool                  IsPacketListEmpty() const;
+    size_t                PacketListSize() const;
+    std::vector<uint8_t>* FrontPacket();
+    void                  PopPacket();
 private:
 
 	BoardClient*             m_board_client;

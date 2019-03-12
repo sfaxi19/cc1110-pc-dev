@@ -4,12 +4,24 @@
 
 namespace cc1110
 {
+	struct settings_s;
+}
+// Functions for speed configure:
+void Init500kbps(cc1110::settings_s& settings); // 500 kb/s
+void Init250kbps(cc1110::settings_s& settings); // 250 kb/s
+void Init38kbps(cc1110::settings_s& settings);  // 38.4 kb/s
+void Init2_4kbps(cc1110::settings_s& settings); // 2.4 kb/s
+void Init1_2kbps(cc1110::settings_s& settings); // 1.2 kb/s
+
+namespace cc1110
+{
 
 enum eMode
 {
 	RADIO_MODE_TX = 0x10,
 	RADIO_MODE_RX = 0x20
 };
+
 
 struct settings_s
 {
@@ -70,17 +82,17 @@ struct settings_s
 
 private:
 	uint8_t MODE =               0x00;
-	uint8_t DUMMY_BYTE =         0x00;
+	uint8_t STATUS =             0x00;
 
 	void     SetPacketLength(uint8_t len);
 	void     SetCRCEnable(uint8_t enable);
 	void     SetMode(eMode mode);
-	void     Enable() { DUMMY_BYTE = 1; }
+	void     Enable() { STATUS = 1; }
 
 public:
 	eMode      GetMode()          const { return static_cast<eMode>(MODE); }
 	uint8_t    GetPacketLength()  const { return CC1110_PKTLEN;            }
-	bool       IsEnabled()        const { return DUMMY_BYTE > 0;           }
+	bool       IsEnabled()        const { return STATUS > 0;           }
 
 
 	friend class BoardClient;
