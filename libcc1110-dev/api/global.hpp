@@ -24,7 +24,7 @@ extern FILE* logfile;
 #define TRACE(...) { if (cc1110::trace) { LOGGER("TRACE", __VA_ARGS__); } FILE_LOGGER("TRACE", __VA_ARGS__); }
 #define DEBUG(...) { if (cc1110::debug) { LOGGER("DEBUG", __VA_ARGS__); } FILE_LOGGER("DEBUG", __VA_ARGS__); }
 #define ERR(...)   { LOGGER("ERROR", __VA_ARGS__);   FILE_LOGGER("ERROR", __VA_ARGS__);   }
-#define WARN(...)  { LOGGER("WARINNG", __VA_ARGS__); FILE_LOGGER("WARNING", __VA_ARGS__); }
+#define WARN(...)  { FILE_LOGGER("WARNING", __VA_ARGS__); }
 #define INFO(...)  { LOGGER("INFO", __VA_ARGS__);    FILE_LOGGER("INFO", __VA_ARGS__);    }
 
 #define SET_BIT(BYTE, IDX, VALUE) BYTE = (BYTE & !(IDX)) | ((VALUE & 0x01) << IDX);

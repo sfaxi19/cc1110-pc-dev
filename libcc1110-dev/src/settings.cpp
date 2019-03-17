@@ -1,5 +1,7 @@
 #include "settings.hpp"
 
+namespace cc1110
+{
 // Address Config = No address check 
 // Base Frequency = 868.299866 
 // CRC Enable = true 
@@ -22,7 +24,7 @@
 // Whitening = false 
 
 // Rf settings for CC1110
-void Init500kbps(cc1110::settings_s& settings) {
+void Init500kbps(settings_s& settings) {
     settings.CC1110_SYNC1          = 0xD3;
     settings.CC1110_SYNC0          = 0x91;
     settings.CC1110_PKTLEN         = 0xFF;
@@ -101,7 +103,7 @@ void Init500kbps(cc1110::settings_s& settings) {
 // Whitening = false 
 
 // Rf settings for CC1110
-void Init250kbps(cc1110::settings_s& settings) {
+void Init250kbps(settings_s& settings) {
     settings.CC1110_SYNC1          = 0xD3;
     settings.CC1110_SYNC0          = 0x91;
     settings.CC1110_PKTLEN         = 0xFF;
@@ -180,7 +182,7 @@ void Init250kbps(cc1110::settings_s& settings) {
 // Whitening = false 
 
 // Rf settings for CC1110
-void Init38kbps(cc1110::settings_s& settings) {
+void Init38kbps(settings_s& settings) {
     settings.CC1110_SYNC1          = 0xD3;
     settings.CC1110_SYNC0          = 0x91;
     settings.CC1110_PKTLEN         = 0xFF;
@@ -260,7 +262,7 @@ void Init38kbps(cc1110::settings_s& settings) {
 // Whitening = false 
 
 // Rf settings for CC1110
-void Init2_4kbps(cc1110::settings_s& settings) {
+void Init2_4kbps(settings_s& settings) {
     settings.CC1110_SYNC1          = 0xD3;
     settings.CC1110_SYNC0          = 0x91;
     settings.CC1110_PKTLEN         = 0xFF;
@@ -340,7 +342,7 @@ void Init2_4kbps(cc1110::settings_s& settings) {
 // Whitening = false 
 
 // Rf settings for CC1110
-void Init1_2kbps(cc1110::settings_s& settings) {
+void Init1_2kbps(settings_s& settings) {
     settings.CC1110_SYNC1          = 0xD3;
     settings.CC1110_SYNC0          = 0x91;
     settings.CC1110_PKTLEN         = 0xFF;
@@ -396,9 +398,6 @@ void Init1_2kbps(cc1110::settings_s& settings) {
     settings.CC1110_PKTSTATUS      = 0x00;
     settings.CC1110_VCO_VC_DAC     = 0x94;
 }
-
-namespace cc1110
-{
 
 void settings_s::activate(eMode mode, uint8_t packet_length)
 {

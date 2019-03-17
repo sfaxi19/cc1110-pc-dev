@@ -38,7 +38,7 @@ void cc1110_speed_test(const char* linkpath)
     std::vector<uint8_t> msg(200);
 
     cc1110::settings_s settings;
-    Init500kbps(settings);
+    cc1110::Init500kbps(settings);
 
     if (rx_mode)
     {
@@ -91,7 +91,7 @@ void cc1110_swap_test(const char* linkpath)
     cc1110::BoardClient client{linkpath};
 
     cc1110::settings_s settings;
-    Init500kbps(settings);
+    cc1110::Init500kbps(settings);
 
     while(true)
     {
@@ -122,7 +122,7 @@ void cc1110_loop_test()
     uint8_t msg_size = 10;
 
     cc1110::settings_s settings;
-    Init500kbps(settings);
+    cc1110::Init500kbps(settings);
 
     cc1110::BoardClient client_tx{path1};
     client_tx.Configure(settings, cc1110::RADIO_MODE_TX, msg_size);
@@ -168,7 +168,7 @@ void board_client_rx(const char* linkpath, std::vector<uint8_t>& msg, uint8_t ms
     cc1110::BoardClient client{linkpath};
 
     cc1110::settings_s settings;
-    Init500kbps(settings);
+    cc1110::Init500kbps(settings);
 
     client.Configure(settings, cc1110::RADIO_MODE_RX, msg_size);
 
@@ -176,7 +176,7 @@ void board_client_rx(const char* linkpath, std::vector<uint8_t>& msg, uint8_t ms
     {
         auto [msg_recv, rssi, lqi] = client.ReceivePacket();
 
-        std::string hex = cc1110::toHexString(msg);
+        std::string hex = cc1110::toHexString(msg_recv);
         printf("%s  RSSI: %d  LQI: %u  - %s\n", hex.c_str(), rssi, lqi, (msg == msg_recv) ? "SUCCESS" : "FAILURE!");
     }
 }
@@ -186,7 +186,7 @@ void board_client_tx(const char* linkpath, std::vector<uint8_t>& msg, uint8_t ms
     cc1110::BoardClient client{linkpath};
 
     cc1110::settings_s settings;
-    Init500kbps(settings);
+    cc1110::Init500kbps(settings);
 
     client.Configure(settings, cc1110::RADIO_MODE_TX, msg.size());
     
@@ -207,7 +207,7 @@ int main(int args, char** argv)
     {
         if (!cc1110::file_exist(argv[1]))
         {
-            std::cerr << "File not \"" << argv[1] << "\" found." << std::endl;
+            std::cerr << "File \"" << argv[1] << "\" not found." << std::endl;
             return EXIT_FAILURE;
         }
         if (loop_test)

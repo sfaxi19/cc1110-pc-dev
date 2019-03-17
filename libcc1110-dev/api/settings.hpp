@@ -4,17 +4,16 @@
 
 namespace cc1110
 {
-	struct settings_s;
-}
-// Functions for speed configure:
-void Init500kbps(cc1110::settings_s& settings); // 500 kb/s
-void Init250kbps(cc1110::settings_s& settings); // 250 kb/s
-void Init38kbps(cc1110::settings_s& settings);  // 38.4 kb/s
-void Init2_4kbps(cc1110::settings_s& settings); // 2.4 kb/s
-void Init1_2kbps(cc1110::settings_s& settings); // 1.2 kb/s
 
-namespace cc1110
-{
+struct settings_s;
+
+// Functions for speed configure:
+void Init500kbps(settings_s& settings); // 500 kb/s
+void Init250kbps(settings_s& settings); // 250 kb/s
+void Init38kbps(settings_s& settings);  // 38.4 kb/s
+void Init2_4kbps(settings_s& settings); // 2.4 kb/s
+void Init1_2kbps(settings_s& settings); // 1.2 kb/s
+
 
 enum eMode
 {
