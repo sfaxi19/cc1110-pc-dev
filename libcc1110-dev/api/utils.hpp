@@ -8,14 +8,7 @@
 namespace cc1110
 {
 
-namespace msg
-{
-	class header_s;
-}
-
-void print_message(std::string title, 
-				   const std::vector<uint8_t>& msg, 
-				   msg::header_s* hdr = nullptr);
+//void print_message(std::string title, const std::vector<uint8_t>& msg);
 
 constexpr int rssi_offset = 75;
 
@@ -32,7 +25,27 @@ inline bool file_exist(const char* filename)
     return infile.good();
 }
 
-uint16_t crc16(uint8_t* data, uint16_t size);
+inline std::string toHexString(uint8_t* msg, size_t size)
+{
+	std::stringstream ss;
+    ss  << std::hex;
+
+    for (int i = 0; i < size; i++)
+    {
+        ss << std::setw(2) << std::setfill('0') << (int)msg[i] << " ";
+    }
+    
+    return ss.str();
+}
+
+inline std::string toHexString(std::vector<uint8_t>& msg)
+{
+	return toHexString(msg.data(), msg.size());
+}
+
+void SaveToDumpFile(const char* filename, const char* data, size_t size);
+
+uint16_t crc16(uint8_t* data, size_t size);
 
 
 }

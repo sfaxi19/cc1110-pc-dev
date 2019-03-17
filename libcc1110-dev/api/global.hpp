@@ -3,6 +3,9 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <iomanip>
+#include <cstring>
+
 #include "SerialPort.h"
 
 namespace cc1110
@@ -10,37 +13,52 @@ namespace cc1110
 extern bool trace;
 extern bool logging;
 extern bool debug;
-}
 
-#define LOG(...)   if(cc1110::logging){fprintf(stdout, __VA_ARGS__);}
-#define TRACE(...) if(cc1110::trace){fprintf(stdout, __VA_ARGS__);}
-#define DEBUG(...) if(cc1110::debug)fprintf(stdout, __VA_ARGS__);
-#define IFLOG(...) if(cc1110::logging)
-#define ERR(...)   fprintf(stderr, "ERROR: " __VA_ARGS__);
-#define INFO(...)  fprintf(stdout, __VA_ARGS__);
+
+extern FILE* logfile;
+#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+
+#define FILE_LOGGER(NAME, ...) if (cc1110::logging && logfile){fprintf(logfile, "[" NAME "] " __VA_ARGS__); fflush(logfile);}
+#define LOGGER(NAME, ...)      fprintf(stdout, "[" NAME "] " __VA_ARGS__);
+
+#define TRACE(...) { if (cc1110::trace) { LOGGER("TRACE", __VA_ARGS__); } FILE_LOGGER("TRACE", __VA_ARGS__); }
+#define DEBUG(...) { if (cc1110::debug) { LOGGER("DEBUG", __VA_ARGS__); } FILE_LOGGER("DEBUG", __VA_ARGS__); }
+#define ERR(...)   { LOGGER("ERROR", __VA_ARGS__);   FILE_LOGGER("ERROR", __VA_ARGS__);   }
+#define WARN(...)  { LOGGER("WARINNG", __VA_ARGS__); FILE_LOGGER("WARNING", __VA_ARGS__); }
+#define INFO(...)  { LOGGER("INFO", __VA_ARGS__);    FILE_LOGGER("INFO", __VA_ARGS__);    }
 
 #define SET_BIT(BYTE, IDX, VALUE) BYTE = (BYTE & !(IDX)) | ((VALUE & 0x01) << IDX);
 #define SET_BITS(BYTE, RANGE, SHIFT, VALUE) BYTE = (BYTE & !((1 << RANGE) - 1)) | ((VALUE & ((1 << RANGE) - 1)) << SHIFT);
 
-class trace_func {	
+class trace_func {
     const char* m_file;	const char* m_name;
 public:
-	trace_func(const char* file, const char* name) : m_file{file}, m_name{name}	{DEBUG("=== %s: %s\t\\\n", m_file, m_name);}
-	~trace_func(){DEBUG("=== %s: %s\t/\n", m_file, m_name);}
+	trace_func(const char* file, const char* name) : m_file{file}, m_name{name}	
+    {
+        // std::time_t time_now = std::time(nullptr);
+        // std::stringstream ss;
+        // ss << std::put_time(std::localtime(&time_now), "%OH:%OM:%OS");
+        DEBUG("%s -> %s:[%d] \\\n", m_file, m_name, __LINE__);
+    }
+	~trace_func()
+    {
+        // std::time_t time_now = std::time(nullptr);
+        // std::stringstream ss;
+        // ss << std::put_time(std::localtime(&time_now), "%OH:%OM:%OS");
+        DEBUG("%s -> %s:[%d] /\n", m_file, m_name, __LINE__);
+    }
 };
 
-#define TRACE_FUNCTION() trace_func TRACE_FUNCTION{__FILE__, __PRETTY_FUNCTION__};
+#define TRACE_FUNCTION() trace_func TRACE_FUNCTION{ __FILENAME__, __PRETTY_FUNCTION__};
 
-enum timers : size_t
+enum time : size_t
 {
-    timeout_read_ms = 100,
-    timeout_send_ms = 100,
-    waitingfor_timer_ms = 150
+    //timeouts:
+    timeout_read_ms = 1000,
+    //timers:
+    before_send_ms = 30,
+    waitingfor_timer_ms = 10
 };
-
-
-namespace cc1110
-{
 
 /*const std::vector<uint8_t> test_data = 
 {

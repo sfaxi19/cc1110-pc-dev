@@ -340,7 +340,7 @@ void Init2_4kbps(cc1110::settings_s& settings) {
 // Whitening = false 
 
 // Rf settings for CC1110
-void Init1_2(cc1110::settings_s& settings) {
+void Init1_2kbps(cc1110::settings_s& settings) {
     settings.CC1110_SYNC1          = 0xD3;
     settings.CC1110_SYNC0          = 0x91;
     settings.CC1110_PKTLEN         = 0xFF;
@@ -399,6 +399,17 @@ void Init1_2(cc1110::settings_s& settings) {
 
 namespace cc1110
 {
+
+void settings_s::activate(eMode mode, uint8_t packet_length)
+{
+    SetMode(mode);
+    SetCRCEnable(0);
+    SetPacketLength(packet_length);
+    
+    CC1110_IOCFG0 = (mode == RADIO_MODE_TX) ? 0x06 : 0x00;
+    Enable();
+}
+
 void settings_s::SetPacketLength(uint8_t len)
 {
 	SET_BITS(CC1110_PKTCTRL0, 2, 0, 0);

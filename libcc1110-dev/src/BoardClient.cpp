@@ -6,9 +6,21 @@ namespace cc1110
 {
 
 BoardClient::BoardClient(std::string board_path, const char* filename) 
-    : m_link_fsm{this, m_serial_port, getDumpFileName(filename)}
+    : m_link_fsm{this, m_serial_port, filename}
     , m_board_path{board_path}
 {
+    if (logging)
+    {
+        std::string fname;
+        fname.append("cc1110_").append(board_path.substr(board_path.find_last_of('/') + 1)).append(".log");
+
+        logfile = fopen(fname.c_str(), "w");
+
+        if (!logfile) 
+        {
+            ERR("File \"%s\" has not created!\n", fname.c_str());
+        }
+    }
 }
 
 BoardClient::~BoardClient()
@@ -40,19 +52,22 @@ void BoardClient::BaseLoop()
         try
         {
             std::vector<uint8_t> recv_data;
-            DEBUG("Waiting for %zu bytes...\n", sizeof(msg::header_s));
+            DEBUG("Waiting for HEADER[%zu] bytes...\n", sizeof(msg::header_s));
             
-            m_serial_port.Read(recv_data, sizeof(msg::header_s), timers::timeout_read_ms);
+            m_serial_port.Read(recv_data, sizeof(msg::header_s), time::timeout_read_ms);
 
             auto b_it = std::copy(recv_data.begin(), recv_data.end(), buffer.begin());
             msg::header_s msg_header = *reinterpret_cast<msg::header_s*>(buffer.data());
             
+            if (msg_header.size > rx_buffer_size)
+            {
+                ERR("Packet format error! Type: %s, Size: %u.\n", toString(msg_header.type), msg_header.size);
+                continue;
+            }
  
-            DEBUG("Waiting for %zu bytes...\n", msg_header.size + sizeof(msg::crc_t));
-            m_serial_port.Read(recv_data, msg_header.size + sizeof(msg::crc_t), timers::timeout_read_ms);
+            DEBUG("Waiting for DATA[%zu] bytes...\n", msg_header.size + sizeof(msg::crc_t));
+            m_serial_port.Read(recv_data, msg_header.size + sizeof(msg::crc_t), time::timeout_read_ms);
             std::copy(recv_data.begin(), recv_data.end(), b_it);
-
-            print_message("Receive", buffer, &msg_header);
 
             auto [packet, success] = msg::decode(buffer);
             if (!success)
@@ -66,7 +81,7 @@ void BoardClient::BaseLoop()
         }
         catch (const LibSerial::ReadTimeout& err)
         {
-            LOG("--- %lu milliseconds passed ---\n", timers::timeout_read_ms);
+            DEBUG("--- %lu milliseconds passed ---\n", time::timeout_read_ms);
             m_link_fsm.OnTimeout();
         }
     }
@@ -93,18 +108,14 @@ bool BoardClient::Run()
     std::thread thr(&BoardClient::BaseLoop, this);
     m_thread = std::move(thr);
 
-    WaitingForActive();
-
 	return true;
 }
 
 void BoardClient::Configure(settings_s settings, eMode mode, uint8_t packet_length)
 {
+    TRACE_FUNCTION();
     m_settings = settings;
-    m_settings.SetMode(mode);
-    m_settings.SetCRCEnable(0);
-    m_settings.SetPacketLength(packet_length);
-    m_settings.Enable();
+    m_settings.activate(mode, packet_length);
 
     INFO("+----------------CONFIGURE---------------+\n");
     INFO("| BOARD PATH      : %20s |\n", m_board_path.c_str());
@@ -112,7 +123,7 @@ void BoardClient::Configure(settings_s settings, eMode mode, uint8_t packet_leng
     INFO("| PACKET LENGTH   : %20u |\n", GetSettings().GetPacketLength());
     INFO("+----------------------------------------+\n");
 
-    if (!m_link_fsm.IsActive())
+    if (m_link_fsm.GetStateId() == eStateId::INIT)
     {
         Run();
     }
@@ -120,17 +131,21 @@ void BoardClient::Configure(settings_s settings, eMode mode, uint8_t packet_leng
     {
         m_link_fsm.Configure();      
     }
+    WaitingActive();
 }
 
-bool BoardClient::SendPacketBlock(std::vector<uint8_t>& msg, uint32_t transmissions)
+bool BoardClient::SendPacket(std::vector<uint8_t>& msg, uint32_t transmissions)
 {
+    TRACE_FUNCTION();
     CHECK_ACTIVE();
-    SendPacket(msg, transmissions);
-    WaitingForSend();
+
+    SendPacketAsync(msg, transmissions);
+    WaitingSend();
 }
 
-bool BoardClient::SendPacket(std::vector<uint8_t> msg, uint32_t transmissions)
+bool BoardClient::SendPacketAsync(std::vector<uint8_t> msg, uint32_t transmissions)
 {
+    TRACE_FUNCTION();
     CHECK_ACTIVE();
  
     if (msg.size() != GetSettings().GetPacketLength())
@@ -151,29 +166,82 @@ bool BoardClient::SendPacket(uint8_t *data, size_t size)
 {
 	TRACE_FUNCTION();
 
-	std::lock_guard<std::mutex> lock(m_mtx);
+    bool do_send = false; 
+    {
+    	std::lock_guard<std::mutex> lock(m_mtx);
 
-    m_packets.emplace_back(data, data + size);
+        do_send = IsPacketListEmpty();
+        m_packets.emplace_back(data, data + size);
+    }//unlock
 
+    if (do_send)
+    {
+        m_link_fsm.SendPacket();
+    }
     return true;
 }
 
-std::vector<uint8_t> BoardClient::ReceivePacketBlock()
+inline std::tuple<std::vector<uint8_t>, int, int> preparation(std::vector<uint8_t>& msg)
 {
-    CHECK_ACTIVE();
-    bool packet_received = false;
-    std::vector<uint8_t> recv_msg;
-    SetReceiveCallback([&recv_msg, &packet_received](auto& msg){ recv_msg.assign(msg.begin(), msg.end()); packet_received = true; });
-    while(!packet_received)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(timers::waitingfor_timer_ms));
-    }
-    return recv_msg;
+    return {std::vector<uint8_t>(msg.begin(), msg.end() - 2), cc1110::rssi_converter(msg[msg.size() - 2]), msg[msg.size() - 1]};
 }
 
-void BoardClient::SetReceiveCallback(receive_callback_t recv_callback)
-{ 
-    m_recv_callback = recv_callback; 
+std::tuple<std::vector<uint8_t>, int, int> BoardClient::ReceivePacket(size_t timeout_ms)
+{
+    CHECK_ACTIVE();
+
+    std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+
+    bool packet_received = false;
+    std::vector<uint8_t> recv_msg;
+    int rssi = 0;
+    int lqi = 0;
+
+    auto callback = [&](std::vector<uint8_t>& _data, int _rssi, int _lqi)
+    {
+        rssi = _rssi;
+        lqi = _lqi;
+        recv_msg = std::move(_data); 
+        packet_received = true; 
+    };
+
+    SetReceiveCallback(callback);
+
+    while(!packet_received)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(time::waitingfor_timer_ms));
+       
+        std::chrono::system_clock::time_point end = std::chrono::system_clock::now();
+        size_t ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        if (timeout_ms != 0 && ms >= timeout_ms)
+        {
+            break;
+        }
+    }
+
+    SetReceiveCallback(nullptr);
+    return std::make_tuple(recv_msg, rssi, lqi);
+}
+
+void BoardClient::ReceivePacketAsync(receive_callback_t callback)
+{            
+    SetReceiveCallback(callback);
+}
+
+void BoardClient::SetReceiveCallback(receive_callback_t callback)
+{
+    std::lock_guard<std::mutex> lock(m_recv_mtx);
+    m_receive_callback = callback; 
+}
+
+void BoardClient::ReceiveCallback(std::vector<uint8_t>& msg)
+{
+    std::lock_guard<std::mutex> lock(m_recv_mtx);
+    if (m_receive_callback)
+    {
+        auto [data, rssi, lqi] = preparation(msg);
+        m_receive_callback(data, rssi, lqi);
+    }
 }
 
 bool BoardClient::IsPacketListEmpty() const
@@ -201,29 +269,27 @@ void BoardClient::PopPacket()
     m_packets.pop_front();
 } 
 
-void BoardClient::WaitingForActive()
+void BoardClient::WaitingActive()
 {
     while(!IsActive())
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(timers::waitingfor_timer_ms));
+        std::this_thread::sleep_for(std::chrono::milliseconds(time::waitingfor_timer_ms));
     }
 }
 
-void BoardClient::WaitingForSend()
+void BoardClient::WaitingSend()
 {
     CHECK_ACTIVE();
     while(!IsPacketListEmpty())
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(timers::waitingfor_timer_ms));
+        std::this_thread::sleep_for(std::chrono::milliseconds(time::waitingfor_timer_ms));
     }
 }
 
-void BoardClient::WaitingFor(size_t ms)
+void BoardClient::Waiting(size_t ms)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
-
-
 
 bool BoardClient::Setup(SerialPort_t& serial_port, std::string path)
 {
@@ -237,7 +303,7 @@ bool BoardClient::Setup(SerialPort_t& serial_port, std::string path)
         return false;
     }
     // Set the baud rates.
-    serial_port.SetBaudRate(LibSerial::BaudRate::BAUD_57600);
+    serial_port.SetBaudRate(LibSerial::BaudRate::BAUD_230400); //BAUD_57600 BAUD_230400
     // Set the number of data bits.
     serial_port.SetCharacterSize(LibSerial::CharacterSize::CHAR_SIZE_8);
     // Set the hardware flow control.
@@ -246,6 +312,7 @@ bool BoardClient::Setup(SerialPort_t& serial_port, std::string path)
     serial_port.SetParity(LibSerial::Parity::PARITY_NONE);
     // Set the number of stop bits.
     serial_port.SetStopBits(LibSerial::StopBits::STOP_BITS_1);
+    serial_port.FlushIOBuffers();
     return true;
 }
 

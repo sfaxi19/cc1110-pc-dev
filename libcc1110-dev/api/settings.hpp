@@ -84,6 +84,8 @@ private:
 	uint8_t MODE =               0x00;
 	uint8_t STATUS =             0x00;
 
+	void     activate(eMode mode, uint8_t packet_length);
+
 	void     SetPacketLength(uint8_t len);
 	void     SetCRCEnable(uint8_t enable);
 	void     SetMode(eMode mode);

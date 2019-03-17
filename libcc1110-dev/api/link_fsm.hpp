@@ -63,9 +63,13 @@ public:
 	void SendTxDataReq(std::vector<uint8_t>& data);
 	void SendTxDataAck();
 
+	void SendPacket();
+
 	void SendErr();
 
 	bool IsActive();
+
+	eStateId GetStateId();
 
 	void SaveToFile(const char* data, size_t size);
 
