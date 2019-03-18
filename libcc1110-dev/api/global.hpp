@@ -54,7 +54,7 @@ public:
 enum time : size_t
 {
     //timeouts:
-    timeout_read_ms = 1000,
+    timeout_read_ms = 300,
     //timers:
     before_send_ms = 30,
     waitingfor_timer_ms = 10
