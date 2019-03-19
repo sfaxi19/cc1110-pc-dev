@@ -26,9 +26,10 @@ sudo ./cc1110-dev /dev/ttyUSB0 --rx
 ```bash
 sudo ./cc1110-dev /dev/ttyUSB1 --tx
 ```
-
+### If you have a problems with the ch341 driver. You can [try to update] the driver.
 ## How to use Smart RF studio to competent configure RF registers?
 ```
 TBD
 ```
 [firmware]:https://github.com/sfaxi19/cc1110-dev
+[try to update]:https://www.linux.org.ru/forum/linux-hardware/11965571?cid=13293927
