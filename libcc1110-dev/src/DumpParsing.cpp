@@ -4,7 +4,6 @@
 #include <cstring>
 #include <cmath>
 
-#include "global.hpp"
 #include "DumpParsing.hpp"
 #include "utils.hpp"
 
@@ -41,22 +40,22 @@ void parsing_dump_by_msg(std::vector<uint8_t>& msg, const char* rx_filename)
         while(rxDumpFile)
         {
          
-            INFO("[");
-            std::for_each(msg.begin(), msg.end(), [](auto& val){ INFO("%02x ", (uint8_t)val); });
-            INFO("]");
+            printf("[");
+            std::for_each(msg.begin(), msg.end(), [](auto& val){ printf("%02x ", (uint8_t)val); });
+            printf("]");
 
-            INFO("\t--->\t");  
+            printf("\t--->\t");  
             if (rxDumpFile)
             {
                 rxDumpFile.read(reinterpret_cast<char*>(&size2), sizeof(size2));
                 if (rxDumpFile) 
                 {
                     rxDumpFile.read(buffer2, size2);
-                    INFO("[");
-                    std::for_each(buffer2, buffer2 + size2 - 2, [](auto& val){ INFO("%02x ", (uint8_t)val); });
+                    printf("[");
+                    std::for_each(buffer2, buffer2 + size2 - 2, [](auto& val){ printf("%02x ", (uint8_t)val); });
                     int rssi = rssi_converter(buffer2[size2 - 2]);
                     uint8_t lqi = buffer2[size2 - 1];
-                    INFO("] RSSI: %d  LQI: %u", rssi, lqi);
+                    printf("] RSSI: %d  LQI: %u", rssi, lqi);
                 }
             }
 
@@ -87,7 +86,7 @@ void parsing_dump_by_msg(std::vector<uint8_t>& msg, const char* rx_filename)
                     {
                         it_berr->second += bit_err_cnt;
                     }
-                    INFO("   PACKET_ERROR [%4d bit errors]", bit_err_cnt);
+                    printf("   PACKET_ERROR [%4d bit errors]", bit_err_cnt);
                 }
                 pktCnt++;
                 auto[it, success] = rssi_cnt_map.insert(std::make_pair(round_rssi, 1));
@@ -96,11 +95,11 @@ void parsing_dump_by_msg(std::vector<uint8_t>& msg, const char* rx_filename)
                     it->second++;
                 }
             }
-            INFO("\n");
+            printf("\n");
         }
-        INFO("PACKETS: %d\n", pktCnt);
-        INFO("ERRORS : %d\n", pktErrCnt);
-        INFO("PER    : %f\n", (double)pktErrCnt/pktCnt);
+        printf("PACKETS: %d\n", pktCnt);
+        printf("ERRORS : %d\n", pktErrCnt);
+        printf("PER    : %f\n", (double)pktErrCnt/pktCnt);
 
         std::ofstream per_file{"per.csv"};
         std::ofstream ber_file{"ber.csv"};
@@ -122,14 +121,14 @@ void parsing_dump_by_msg(std::vector<uint8_t>& msg, const char* rx_filename)
             ber_file << ber << ",";                
 
 
-            INFO("RSSI: %3d\t PACKETS: %4u\t pERRORS: %4u\t PER: %6.4f \tbERRORS: %4u\t BER: %6.4f\n", it_err.first, it_cnt->second, it_err.second, per, it_berr->second, ber);
+            printf("RSSI: %3d\t PACKETS: %4u\t pERRORS: %4u\t PER: %6.4f \tbERRORS: %4u\t BER: %6.4f\n", it_err.first, it_cnt->second, it_err.second, per, it_berr->second, ber);
             it_cnt++;
             it_berr++;
         }
     }
     else
     {
-        ERR("%s: Fail!", __PRETTY_FUNCTION__);
+        printf("%s: Fail!", __PRETTY_FUNCTION__);
     }
 }
 
@@ -160,23 +159,23 @@ void parsing_dump_by_txfile(const char* tx_filename, const char* rx_filename)
                 if (txDumpFile) 
                 {
                     txDumpFile.read(buffer1, size1); 
-                    INFO("[");
-                    std::for_each(buffer1, buffer1 + size1, [](auto& val){ INFO("%02x ", (uint8_t)val); });
-                    INFO("]");
+                    printf("[");
+                    std::for_each(buffer1, buffer1 + size1, [](auto& val){ printf("%02x ", (uint8_t)val); });
+                    printf("]");
                 }
             }
-            INFO("\t--->\t");  
+            printf("\t--->\t");  
             if (rxDumpFile)
             {
                 rxDumpFile.read(reinterpret_cast<char*>(&size2), sizeof(size2));
                 if (rxDumpFile) 
                 {
                     rxDumpFile.read(buffer2, size2);
-                    INFO("[");
-                    std::for_each(buffer2, buffer2 + size2 - 2, [](auto& val){ INFO("%02x ", (uint8_t)val); });
+                    printf("[");
+                    std::for_each(buffer2, buffer2 + size2 - 2, [](auto& val){ printf("%02x ", (uint8_t)val); });
                     int rssi = rssi_converter(buffer2[size2 - 2]);
                     uint8_t lqi = buffer2[size2 - 1];
-                    INFO("] RSSI: %d  LQI: %u", rssi, lqi);
+                    printf("] RSSI: %d  LQI: %u", rssi, lqi);
                 }
             }
 
@@ -207,7 +206,7 @@ void parsing_dump_by_txfile(const char* tx_filename, const char* rx_filename)
                     {
                         it_berr->second += bit_err_cnt;
                     }
-                    INFO("   PACKET_ERROR [%4d bit errors]", bit_err_cnt);
+                    printf("   PACKET_ERROR [%4d bit errors]", bit_err_cnt);
                 }
                 pktCnt++;
                 auto[it, success] = rssi_cnt_map.insert(std::make_pair(round_rssi, 1));
@@ -216,11 +215,11 @@ void parsing_dump_by_txfile(const char* tx_filename, const char* rx_filename)
                     it->second++;
                 }
             }
-            INFO("\n");
+            printf("\n");
         }
-        INFO("PACKETS: %d\n", pktCnt);
-        INFO("ERRORS : %d\n", pktErrCnt);
-        INFO("PER    : %f\n", (double)pktErrCnt/pktCnt);
+        printf("PACKETS: %d\n", pktCnt);
+        printf("ERRORS : %d\n", pktErrCnt);
+        printf("PER    : %f\n", (double)pktErrCnt/pktCnt);
 
         std::ofstream per_file{"per.csv"};
         std::ofstream ber_file{"ber.csv"};
@@ -239,14 +238,14 @@ void parsing_dump_by_txfile(const char* tx_filename, const char* rx_filename)
             double ber = (double)it_berr->second/(it_cnt->second * 8 * size1);
             per_file << per << ",";
             ber_file << ber << ",";
-            INFO("RSSI: %3d\t PACKETS: %4u\t pERRORS: %4u\t PER: %6.4f \tbERRORS: %4u\t BER: %6.4f\n", it_err.first, it_cnt->second, it_err.second, per, it_berr->second, ber);
+            printf("RSSI: %3d\t PACKETS: %4u\t pERRORS: %4u\t PER: %6.4f \tbERRORS: %4u\t BER: %6.4f\n", it_err.first, it_cnt->second, it_err.second, per, it_berr->second, ber);
             it_cnt++;
             it_berr++;
         }
     }
     else
     {
-        ERR("%s: Fail!", __PRETTY_FUNCTION__);
+        printf("%s: Fail!", __PRETTY_FUNCTION__);
     }
 }
 

@@ -62,11 +62,11 @@ void InitSpeed500kbps(cc1110::settings_s& settings) {
 
 int main(int args, char** argv)
 {
-	const int DATA_SIZE = 10;
+    const int DATA_SIZE = 10;
 
-	cc1110::logging = true; // Write log to file cc1110_<devname>.log
+    cc1110::logging = true; // Write log to file cc1110_<devname>.log
 
-	cc1110::BoardClient client{"/dev/ttyUSB2"};
+    cc1110::BoardClient client{"/dev/ttyUSB2"};
 
     cc1110::settings_s settings;
     InitSpeed500kbps(settings);
@@ -78,6 +78,6 @@ int main(int args, char** argv)
         auto [msg, rssi, lqi] = client.ReceivePacket(); //Receive message with waiting limit 500 ms
 
         std::string hex = cc1110::toHexString(msg);
-        printf("RECEIVE DATA: %s  RSSI: %d  LQI: %u\n", hex.c_str(), rssi, lqi);
+        printf("RECEIVED DATA: %s  RSSI: %d  LQI: %u\n", hex.c_str(), rssi, lqi);
     }
 }

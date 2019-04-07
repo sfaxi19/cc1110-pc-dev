@@ -190,7 +190,11 @@ void board_client_tx(const char* linkpath, std::vector<uint8_t>& msg, uint8_t ms
 
     client.Configure(settings, cc1110::RADIO_MODE_TX, msg.size());
     
-    client.SendPacket(msg, 100000);
+    for (int i = 0; i < 10; i++)
+    {
+        msg[0] = i % 256;
+        client.SendPacket(msg);
+    }
 }
 
 int main(int args, char** argv)

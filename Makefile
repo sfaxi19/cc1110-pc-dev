@@ -41,7 +41,7 @@ test: main.cpp
 	$(CXX) main.cpp -o $(EXE) -lcc1110-dev
 
 clean:
-	rm *.o $(LIBCC1110_DEV)
+	rm -f *.o $(LIBCC1110_DEV)
 
 install: 
 	mkdir -p $(INCLUDE_PREFIX)/cc1110-dev
@@ -50,5 +50,5 @@ install:
 	install $(LIBCC1110_DEV) $(LIB_PREFIX)
 
 uninstall:
-	rm $(LIB_PREFIX)/$(LIBCC1110_DEV)
+	rm -f $(LIB_PREFIX)/$(LIBCC1110_DEV)
 	rm -rf $(INCLUDE_PREFIX)/cc1110-dev

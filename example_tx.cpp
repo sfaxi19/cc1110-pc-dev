@@ -61,9 +61,9 @@ void InitSpeed500kbps(cc1110::settings_s& settings) {
 
 int main(int args, char** argv)
 {
-	const int DATA_SIZE = 10;
+    const int DATA_SIZE = 10;
 
-	cc1110::logging = true;
+    cc1110::logging = true;
 
     cc1110::BoardClient client{"/dev/ttyUSB1"};
 
@@ -76,14 +76,14 @@ int main(int args, char** argv)
 
     for (int i = 0; i < 10; i++)
     {
-    	for (auto& it : msg)
-    	{
-    		it = rand() % 256;
-    	}
+        for (auto& it : msg)
+        {
+            it = rand() % 256;
+        }
 
-    	std::string hex = cc1110::toHexString(msg);
-        printf("SEND DATA: %s\n", hex.c_str());
+        std::string hex = cc1110::toHexString(msg);
+        printf("SENDING DATA: %s\n", hex.c_str());
 
-    	client.SendPacket(msg, 4); //Send message 4 times
+        client.SendPacket(msg, 4); //Send message 4 times
     }
 }

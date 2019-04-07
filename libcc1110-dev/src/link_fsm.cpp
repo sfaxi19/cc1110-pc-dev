@@ -230,7 +230,7 @@ public:
 			{
 				std::vector<uint8_t> msg(packet.data, packet.data + packet.header.size);
 				link->ReceiveCallback(msg);
-				//link->SaveToFile(reinterpret_cast<char*>(msg.data()), msg.size());
+				link->SaveToFile(reinterpret_cast<char*>(msg.data()), msg.size());
 				break;
 			}
 			default:
